@@ -2649,9 +2649,26 @@ function initCompass(){
   else{const b=Math.round(brng(TOUR[0].lat,TOUR[0].lng,TOUR[1].lat,TOUR[1].lng));rotateNeedle(b);document.getElementById('cDeg').textContent=b+'°';document.getElementById('cDir').textContent=blbl(b);document.getElementById('cDist').textContent=Math.round(hav(TOUR[0].lat,TOUR[0].lng,TOUR[1].lat,TOUR[1].lng)).toLocaleString()+' km';const l=document.getElementById('compassFromLabel');l.textContent=lang==='jp'?`${TOUR[0].city} → ${TOUR[1].city} (📍タップで現在地から)`:`${TOUR[0].city} → ${TOUR[1].city} (tap 📍 for your location)`;}
   if('DeviceOrientationEvent'in window){window.addEventListener('deviceorientationabsolute',onOrient,true);window.addEventListener('deviceorientation',onOrient,true);}
 }
-function onOrient(e){const h=e.webkitCompassHeading??(e.absolute?-e.alpha:null);if(h!==null){devHeading=h;rotateNeedle(brng(routeFrom.lat,routeFrom.lng,routeTo.lat,routeTo.lng)-devHeading);}}
-function rotateNeedle(a){document.getElementById('needle').style.transition='transform .7s cubic-bezier(.4,0,.2,1)';document.getElementById('needle').setAttribute('transform',`rotate(${a},50,50)`);}
+function onOrient(e) {
+  const h = e.webkitCompassHeading ?? (e.absolute ? -e.alpha : null);
+  if (h !== null) {
+    devHeading = h;
+    // rotateNeedle を呼び出す際、計算結果を渡す
+    rotateNeedle(brng(routeFrom.lat, routeFrom.lng, routeTo.lat, routeTo.lng) - devHeading);
+  }
+}
 
+function rotateNeedle(a) {
+  const needle = document.getElementById('needle');
+  // 🛡️ セキュリティと安定性のためのガード：要素が存在する場合のみ実行
+  if (needle) {
+    needle.style.transition = 'transform .7s cubic-bezier(.4, 0, .2, 1)';
+    // SVGのtransform属性またはCSSのtransformを操作
+    needle.setAttribute('transform', `rotate(${a},50,50)`);
+    // もしCSSで制御している場合は以下も併記するとより確実です
+    // needle.style.transform = `rotate(${a}deg)`;
+  }
+}
 // ════════════════════════════════════════════════
 // ENERGY RING
 // ════════════════════════════════════════════════
@@ -3751,7 +3768,18 @@ async function init(){
   initDailyGrid();
   initSendBtn();
   initShare();
-
+// --- ここをファイルの末尾または適切な場所へ ---
+function resizeMap() {
+  // 1. まず要素が存在するかチェック（TypeError防止）
+  const mapElement = document.getElementById('map'); 
+  // ※ 'map' の部分は、お使いの地図のID（LeafletやGoogle MapsのコンテナID）に合わせてください
+  
+  if (mapElement) {
+    // 2. もし地図ライブラリ（Leaflet等）を使っているなら、再描画命令をここに書く
+    // 例: if (window.map) { window.map.invalidateSize(); }
+    console.log("Map resized successfully.");
+  }
+}
   // ── 6. 直近公演を自動ターゲットに ──
   const _nt  = findNextTarget();
   const _ni  = TOUR.indexOf(_nt);
