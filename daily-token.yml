@@ -1,0 +1,86 @@
+name: Generate Daily Token
+
+# ────────────────────────────────────────────────────
+# 毎日 UTC 00:00 に実行し、今日の署名トークンを生成
+# SIGN_KEY は GitHub Secret にのみ存在し、公開されない
+#
+# 必要な Secret:
+#   SIGN_KEY: openssl rand -hex 32 で生成
+#
+# 生成されるファイル:
+#   tokens/YYYY-MM-DD.json  (7日後に自動削除)
+# ────────────────────────────────────────────────────
+
+on:
+  schedule:
+    - cron: '0 0 * * *'   # 毎日 UTC 00:00 (JST 09:00)
+  workflow_dispatch:        # 手動実行可能
+
+permissions:
+  contents: write
+
+jobs:
+  generate-token:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Generate daily token
+        env:
+          SIGN_KEY: ${{ secrets.SIGN_KEY }}
+        run: |
+          set -euo pipefail
+          DATE=$(date -u +%Y-%m-%d)
+          TOMORROW=$(date -u -d '+1 day' +%Y-%m-%dT00:00:00Z 2>/dev/null || date -u -v+1d +%Y-%m-%dT00:00:00Z)
+
+          # SIGN_KEY + DATE → SHA-256 → daily_token
+          # SIGN_KEY 自体はこのJSONに含まれない
+          TOKEN=$(printf '%s%s' "${SIGN_KEY}" "${DATE}" \
+            | openssl dgst -sha256 -hex \
+            | awk '{print $2}')
+
+          mkdir -p tokens
+
+          cat > "tokens/${DATE}.json" <<EOF
+          {
+            "date":    "${DATE}",
+            "token":  "${TOKEN}",
+            "expires": "${TOMORROW}",
+            "v":       1
+          }
+          EOF
+
+          echo "✅ Token generated for ${DATE}"
+          echo "   Token prefix: ${TOKEN:0:8}... (64 chars)"
+
+      - name: Clean up tokens older than 7 days
+        run: |
+          set -euo pipefail
+          CUTOFF=$(date -u -d '-7 days' +%Y-%m-%d 2>/dev/null || date -u -v-7d +%Y-%m-%d)
+          COUNT=0
+          for f in tokens/*.json; do
+            [ -f "$f" ] || continue
+            FNAME=$(basename "$f" .json)
+            if [[ "$FNAME" < "$CUTOFF" ]]; then
+              rm "$f"
+              COUNT=$((COUNT+1))
+            fi
+          done
+          echo "ℹ️  Removed ${COUNT} expired token file(s)"
+
+      - name: Commit and push
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add tokens/
+          if git diff --staged --quiet; then
+            echo "ℹ️  No changes — skipping commit"
+          else
+            git commit -m "chore: daily token $(date -u +%Y-%m-%d) [skip ci]"
+            git push
+            echo "✅ Token committed and deployed"
+          fi

@@ -1,0 +1,37 @@
+version: 2
+
+# ────────────────────────────────────────────────────────────────
+# Dependabot 設定
+# GitHub Actions のバージョン更新PRを自動生成
+# SHA pinningと組み合わせて安全に最新版を追いかける
+#
+# 対策1 (クールダウン) + 対策4 (SHA pinning) の自動化
+# ────────────────────────────────────────────────────────────────
+
+updates:
+  # ── GitHub Actions の自動更新 ──────────────────────────────
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "Asia/Tokyo"
+
+    # 対策1: クールダウン (公開7日未満のバージョンはスキップ)
+    # 2025年7月からサポートされた設定
+    cooldown:
+      default-days: 7
+
+    # 更新PRのラベル
+    labels:
+      - "dependencies"
+      - "github-actions"
+      - "security"
+
+    # レビュー担当者
+    # reviewers:
+    #   - "OWNER_USERNAME"
+
+    # 自動マージ候補 (patch以下は自動、minor以上は手動)
+    # versioning-strategy: auto
