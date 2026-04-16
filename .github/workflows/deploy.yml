@@ -22,9 +22,9 @@ jobs:
       url:  ${{ steps.deployment.outputs.page_url }}
 
     steps:
-      # 1. チェックアウト (最新の安定ハッシュを使用)
+      # 1. チェックアウト
       - name: Checkout
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: actions/checkout@v4
 
       # 2. SITE_URL 決定
       - name: Resolve SITE_URL
@@ -54,17 +54,17 @@ jobs:
           cp -r * dist/ 2>/dev/null || true
           rm -rf dist/dist dist/.git dist/.github
 
-          # 各種変数の置換 (不足していた GAS_URL 等を追加)
+          # 各種プレースホルダーの置換（エラーで指摘された項目を網羅）
           sed -i "s|%%GA4_ID%%|${GA4_ID}|g" dist/index.html
           sed -i "s|%%SITE_URL%%|${SITE_URL}|g" dist/index.html
           sed -i "s|%%WORKER_URL%%|${WORKER_URL}|g" dist/index.html
           sed -i "s|%%GAS_URL%%|${GAS_URL}|g" dist/index.html
           
-          # GA4スクリプト自体のプレースホルダーがある場合の処理
+          # コメント形式のプレースホルダー置換
           GA4_SCRIPT="<script async src='https://www.googletagmanager.com/gtag/js?id=${GA4_ID}'></script>"
           sed -i "s||${GA4_SCRIPT}|g" dist/index.html
 
-          # HMAC署名用のトークン生成 (Daily)
+          # HMAC署名用のトークン生成
           DATE=$(date +%Y-%m-%d)
           DAILY_TOKEN=$(echo -n "${SIGN_KEY}${DATE}" | openssl dgst -sha256 -hex | cut -d' ' -f2)
           sed -i "s|%%DAILY_TOKEN%%|${DAILY_TOKEN}|g" dist/index.html
@@ -75,7 +75,6 @@ jobs:
           SIGN_KEY: ${{ secrets.SIGN_KEY }}
         run: |
           FAIL=0
-          # SIGN_KEY が dist 内に含まれていないことを厳重に確認
           if [ -n "${SIGN_KEY:-}" ] && grep -rq "${SIGN_KEY}" dist/ 2>/dev/null; then
             echo "SECURITY FAIL: SIGN_KEY found in dist"
             FAIL=1
@@ -83,14 +82,29 @@ jobs:
           [ "$FAIL" -eq 0 ] && echo "Security audit passed"
           exit $FAIL
 
-      # 5. プレースホルダー残存チェック (これがエラーを検知してくれました)
-      - name: Validate placeholders replaced
+      # 5. プレースホルダー残存チェック (構文エラーを回避する安全な記述)
+      - name: Validate placeholders
         run: |
-          # コメント内の %% は無視し、実コード内の未置換をチェック
-          if grep '%%' dist/index.html | grep -v '` を実際のタグに置き換える処理を追加しました。
-3.  **バリデーションの改善**: コメント行に残っている `%%` でビルドが止まらないよう、チェック処理を少し柔軟にしました。
-4.  **堅牢性の維持**: `SIGN_KEY` の漏洩チェックはそのまま残しています。
+          # コメントアウトされている %%GA4_SCRIPT%% 以外で %% が残っていないかチェック
+          REMAINING=$(grep '%%' dist/index.html | grep -v '%%GA4_SCRIPT%%' || true)
+          if [ -n "$REMAINING" ]; then
+            echo "Unreplaced placeholders found:"
+            echo "$REMAINING"
+            exit 1
+          fi
+          echo "Validation success"
 
-**注意点**: GitHubリポジトリの **Settings > Secrets and variables > Actions** に、**`GAS_URL`** という名前で Google Apps Script のURLが登録されていることを確認してください。もし登録されていない場合、空文字として置換されます。
+      # 6. GitHub Pages セットアップ
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
 
-この `deploy.yml` を使用すれば、エラーをパスして無事にデプロイが完了します。
+      # 7. アーティファクトのアップロード
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+      # 8. デプロイ実行
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
