@@ -49,32 +49,18 @@ jobs:
           SIGN_KEY: ${{ secrets.SIGN_KEY }}
         run: |
           set -euo pipefail
-          # 日付の取得
           DATE=$(TZ=Asia/Tokyo date +%Y-%m-%d 2>/dev/null || date -u -d '+9 hours' +%Y-%m-%d)
           TOMORROW=$(date -u -d '+1 day' +%Y-%m-%dT00:00:00Z 2>/dev/null || date -u -v+1d +%Y-%m-%dT00:00:00Z)
-          
-          # SIGN_KEYの存在チェック
           if [ -z "${SIGN_KEY}" ]; then echo "Error: SIGN_KEY is empty" && exit 1; fi
-          
-          # SALT生成
           SALT=$(printf '%s%s%s' "${SIGN_KEY}" "daily" "${DATE}" | openssl dgst -sha256 -hex | awk '{print $2}')
+          printf '{"date":"%s","salt":"%s","token":"%s","expires":"%s","v":2}\n' "${DATE}" "${SALT}" "${SALT}" "${TOMORROW}" > "dist/tokens/${DATE}.json"
           
-          # JSON書き出し
-          printf '{"date":"%s","salt":"%s","token":"%s","expires":"%s","v":2}\n' \
-            "${DATE}" "${SALT}" "${SALT}" "${TOMORROW}" > "dist/tokens/${DATE}.json"
-          
-          echo "✅ Generated token for ${DATE}"
-
-          # 掃除（ここを修正：条件不成立で終了しないようにする）
           shopt -s nullglob
           CUTOFF=$(date -d '-7 days' +%Y-%m-%d 2>/dev/null || date -u -v-7d +%Y-%m-%d)
           for f in dist/tokens/*.json; do
             FNAME=$(basename "$f" .json)
-            if [[ "$FNAME" < "$CUTOFF" ]]; then
-              rm "$f" && echo "  Removed old token: $FNAME"
-            fi
+            if [[ "$FNAME" < "$CUTOFF" ]]; then rm "$f"; fi
           done
-          echo "✅ Cleanup step finished."
 
       - name: Generate signed manifest
         env:
@@ -83,7 +69,6 @@ jobs:
           DATE=$(date -u +%Y-%m-%d)
           KEY=$(printf '%s%s' "${SIGN_KEY}" "${DATE}" | openssl dgst -sha256 -hex | awk '{print $2}')
           printf '{"date":"%s","k":"%s","v":1}\n' "${DATE}" "${KEY}" > dist/manifest.json
-          echo "✅ Manifest generated."
 
       - name: Inject SITE_URL
         env:
@@ -92,7 +77,6 @@ jobs:
           for f in dist/index.html dist/sitemap.xml dist/robots.txt; do
             [ -f "$f" ] && sed -i "s|%%SITE_URL%%|${SITE_URL}|g" "$f"
           done
-          echo "✅ SITE_URL injected."
 
       - name: Robust Injection (Python)
         env:
@@ -119,28 +103,27 @@ jobs:
           replace_placeholder('dist/index.html', '%%GAS_URL%%', os.environ.get('GAS_URL', ''))
           replace_placeholder('dist/index.html', '%%WORKER_URL%%', os.environ.get('WORKER_URL', ''))
           PYEOF
-          echo "✅ All dynamic variables injected."
 
       - name: Security Audit
         env:
           SIGN_KEY: ${{ secrets.SIGN_KEY }}
         run: |
           if [ -n "${SIGN_KEY}" ] && grep -rq "${SIGN_KEY}" dist/; then
-            echo "🚨 SECURITY ALERT: SIGN_KEY leaked into build artifacts!"
+            echo "🚨 SECURITY ALERT: SIGN_KEY leaked!"
             exit 1
           fi
-          echo "✅ Security audit passed."
 
-- name: Final Validation
+      - name: Final Validation
         run: |
-          # 単なる '%%' ではなく、書き換え対象のパターン '%%NAME%%' が残っていないかチェック
-          # ただし、比較用のロジック（startsWith('%%')）などは除外する
-          if grep -E '%%[A-Z0-9_]+%%|' dist/index.html; then
-            echo "🚨 ERROR: Unreplaced deployment placeholders found in index.html"
-            grep -E '%%[A-Z0-9_]+%%|' dist/index.html
+          # 誤検知を避けるため、特定の変数パターンのみをチェック
+          # HTMLコメントのGA4_SCRIPTと、%%大文字英数字%% の形式を探す
+          TARGET_PATTERN='|%%[A-Z0-9_]{3,}%%'
+          if grep -E "$TARGET_PATTERN" dist/index.html; then
+            echo "🚨 ERROR: Unreplaced placeholders found!"
+            grep -E "$TARGET_PATTERN" dist/index.html
             exit 1
           fi
-          echo "✅ Final validation passed (ignores logic-level %% comparisons)."
+          echo "✅ Validation passed."
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
