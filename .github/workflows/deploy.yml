@@ -51,34 +51,30 @@ jobs:
           cp -r * dist/ 2>/dev/null || true
           rm -rf dist/dist dist/.git dist/.github
 
-          # 🚨 地獄を終わらせる安全な sed の実行方法
-          # 's|検索|置換|g' の形式を崩さないよう、シェル変数を引用符で厳重に囲みます。
+          # 🚨 sedを捨ててperlを使用（変数が空でも絶対にエラーにならない方法）
+          # 231行のロジックをより安全に実行します
           
-          # GA4_ID の置換
-          sed -i "s|%%GA4_ID%%|${GA4_ID:-G-XXXXXXXXXX}|g" dist/index.html
+          TARGET="dist/index.html"
           
-          # SITE_URL の置換
-          sed -i "s|%%SITE_URL%%|${SITE_URL:-https://localhost}|g" dist/index.html
+          perl -i -pe "s|%%GA4_ID%%|\$ENV{GA4_ID}|g" "$TARGET"
+          perl -i -pe "s|%%SITE_URL%%|\$ENV{SITE_URL}|g" "$TARGET"
+          perl -i -pe "s|%%WORKER_URL%%|\$ENV{WORKER_URL}|g" "$TARGET"
+          perl -i -pe "s|%%GAS_URL%%|\$ENV{GAS_URL}|g" "$TARGET"
           
-          # WORKER_URL の置換
-          sed -i "s|%%WORKER_URL%%|${WORKER_URL:-#}|g" dist/index.html
-          
-          # GAS_URL の置換
-          sed -i "s|%%GAS_URL%%|${GAS_URL:-#}|g" dist/index.html
-          
-          # GA4_SCRIPT 置換
-          GA4_TAG="<script async src='https://www.googletagmanager.com/gtag/js?id=${GA4_ID:-G-XXXXXXXXXX}'></script>"
-          sed -i "s||${GA4_TAG}|g" dist/index.html
+          # GA4スクリプト置換
+          GA4_TAG="<script async src='https://www.googletagmanager.com/gtag/js?id=$GA4_ID'></script>"
+          export GA4_TAG
+          perl -i -pe "s||\$ENV{GA4_TAG}|g" "$TARGET"
 
-          # 4. HMAC署名 (SIGN_KEYが空でもopensslがエラーにならないよう処理)
+          # HMAC署名
           DATE=$(date +%Y-%m-%d)
           if [ -n "$SIGN_KEY" ]; then
-            # stdoutのみを取得する安全なパイプ
             DAILY_TOKEN=$(echo -n "${SIGN_KEY}${DATE}" | openssl dgst -sha256 -hex | awk '{print $NF}')
           else
             DAILY_TOKEN="offline-mode-token"
           fi
-          sed -i "s|%%DAILY_TOKEN%%|${DAILY_TOKEN}|g" dist/index.html
+          export DAILY_TOKEN
+          perl -i -pe "s|%%DAILY_TOKEN%%|\$ENV{DAILY_TOKEN}|g" "$TARGET"
 
       - name: Security Audit
         env:
@@ -91,11 +87,10 @@ jobs:
 
       - name: Validate placeholders
         run: |
-          # 最終チェック（GA4_SCRIPT以外の未置換%%を検知）
+          # 未置換の %% がないかチェック (GA4_SCRIPTの残骸は許容)
           REMAINING=$(grep '%%' dist/index.html | grep -v '%%GA4_SCRIPT%%' || true)
           if [ -n "$REMAINING" ]; then
-            echo "Error: Some placeholders were not replaced."
-            echo "$REMAINING"
+            echo "Error: Unreplaced placeholders detected."
             exit 1
           fi
 
