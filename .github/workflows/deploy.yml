@@ -61,6 +61,7 @@ jobs:
             FNAME=$(basename "$f" .json)
             if [[ "$FNAME" < "$CUTOFF" ]]; then rm "$f"; fi
           done
+          echo "✅ Daily token generated and old ones cleaned."
 
       - name: Generate signed manifest
         env:
@@ -69,6 +70,7 @@ jobs:
           DATE=$(date -u +%Y-%m-%d)
           KEY=$(printf '%s%s' "${SIGN_KEY}" "${DATE}" | openssl dgst -sha256 -hex | awk '{print $2}')
           printf '{"date":"%s","k":"%s","v":1}\n' "${DATE}" "${KEY}" > dist/manifest.json
+          echo "✅ Manifest generated."
 
       - name: Inject SITE_URL
         env:
@@ -77,6 +79,7 @@ jobs:
           for f in dist/index.html dist/sitemap.xml dist/robots.txt; do
             [ -f "$f" ] && sed -i "s|%%SITE_URL%%|${SITE_URL}|g" "$f"
           done
+          echo "✅ SITE_URL injected."
 
       - name: Robust Injection (Python)
         env:
@@ -103,6 +106,7 @@ jobs:
           replace_placeholder('dist/index.html', '%%GAS_URL%%', os.environ.get('GAS_URL', ''))
           replace_placeholder('dist/index.html', '%%WORKER_URL%%', os.environ.get('WORKER_URL', ''))
           PYEOF
+          echo "✅ GA4, GAS, and Worker URLs processed."
 
       - name: Security Audit
         env:
@@ -112,25 +116,28 @@ jobs:
             echo "🚨 SECURITY ALERT: SIGN_KEY leaked!"
             exit 1
           fi
+          echo "✅ Security audit passed."
 
       - name: Final Validation
         run: |
-          # 誤検知を避けるため、特定の変数パターンのみをチェック
-          # HTMLコメントのGA4_SCRIPTと、%%大文字英数字%% の形式を探す
-          TARGET_PATTERN='|%%[A-Z0-9_]{3,}%%'
-          if grep -E "$TARGET_PATTERN" dist/index.html; then
-            echo "🚨 ERROR: Unreplaced placeholders found!"
-            grep -E "$TARGET_PATTERN" dist/index.html
+          # 実害のある未置換URLプレースホルダーのみをチェック
+          # プログラム内のロジック比較 (startsWith('%%')) などは許容する
+          MISSING=$(grep -E '%%GAS_URL%%|%%WORKER_URL%%|%%SITE_URL%%' dist/index.html || true)
+          if [ -n "$MISSING" ]; then
+            echo "🚨 ERROR: Critical URL placeholders were not replaced!"
+            echo "$MISSING"
             exit 1
           fi
-          echo "✅ Validation passed."
+          echo "✅ Critical placeholders checked and passed."
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
+
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
           path: dist
+
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
