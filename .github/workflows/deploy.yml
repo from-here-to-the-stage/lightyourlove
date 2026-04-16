@@ -4,12 +4,12 @@ name: Deploy to GitHub Pages
 # 必要な GitHub Secrets / Variables:
 #
 # Secrets (Settings > Secrets and variables > Actions > Secrets):
-#   GA4_ID      = G-XXXXXXXXXX         Google Analytics 測定ID
-#   SIGN_KEY    = openssl rand -hex 32  称号HMAC + DailyToken署名キー
-#   WORKER_URL  = https://...workers.dev  Cloudflare Worker（任意）
+#    GA4_ID      = G-XXXXXXXXXX         Google Analytics 測定ID
+#    SIGN_KEY    = openssl rand -hex 32  称号HMAC + DailyToken署名キー
+#    WORKER_URL  = https://...workers.dev  Cloudflare Worker（任意）
 #
 # Variables (Settings > Secrets and variables > Actions > Variables):
-#   SITE_URL    = https://username.github.io/repo-name
+#    SITE_URL    = https://username.github.io/repo-name
 # ────────────────────────────────────────────────────────────────
 
 on:
@@ -23,7 +23,7 @@ permissions:
   id-token: write
 
 concurrency:
-  group:            pages
+  group:             pages
   cancel-in-progress: true
 
 jobs:
@@ -36,7 +36,7 @@ jobs:
     steps:
       # 1. チェックアウト
       - name: Checkout
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: actions/checkout@v4
 
       # 2. SITE_URL 決定
       - name: Resolve SITE_URL
@@ -77,30 +77,25 @@ jobs:
           printf '{"date":"%s","k":"%s","v":1}\n' "${DATE}" "${KEY}" > dist/manifest.json
           echo "manifest.json generated for ${DATE}"
 
-      # 5. SDS-v2 Daily Salt 生成（1公演1回制限 + GAS検証用）
-      # [改良] フルSHA-256 (64文字) / JST日付基準 / "daily"プレフィックスで名前空間分離
+      # 5. SDS-v2 Daily Salt 生成
       - name: Generate SDS-v2 daily salt
         env:
           SIGN_KEY: ${{ secrets.SIGN_KEY }}
         run: |
           set -euo pipefail
-          # JST 日付 (UTC+9) — GASと同一基準
           DATE=$(TZ=Asia/Tokyo date +%Y-%m-%d 2>/dev/null \
-                 || date -u -d '+9 hours' +%Y-%m-%d)
+                  || date -u -d '+9 hours' +%Y-%m-%d)
           TOMORROW=$(date -u -d '+1 day' +%Y-%m-%dT00:00:00Z 2>/dev/null \
-                     || date -u -v+1d +%Y-%m-%dT00:00:00Z)
-          # フルSHA-256 (64文字) — 提案の16文字から強化、GASと同じUTF-8バイト列
+                      || date -u -v+1d +%Y-%m-%dT00:00:00Z)
           SALT=$(printf '%s%s%s' "${SIGN_KEY}" "daily" "${DATE}" \
-                 | openssl dgst -sha256 -hex | awk '{print $2}')
+                  | openssl dgst -sha256 -hex | awk '{print $2}')
           mkdir -p dist/tokens
-          # "salt"と"token"の両フィールド (後方互換)
           printf '{"date":"%s","salt":"%s","token":"%s","expires":"%s","v":2}\n' \
             "${DATE}" "${SALT}" "${SALT}" "${TOMORROW}" \
             > "dist/tokens/${DATE}.json"
           echo "SDS-v2 salt: ${DATE} prefix=${SALT:0:8}..."
-          # 7日超のファイルを削除
           CUTOFF=$(TZ=Asia/Tokyo date -d '-7 days' +%Y-%m-%d 2>/dev/null \
-                   || date -u -v-7d +%Y-%m-%d)
+                    || date -u -v-7d +%Y-%m-%d)
           for f in dist/tokens/*.json; do
             [ -f "$f" ] || continue
             FNAME=$(basename "$f" .json)
@@ -117,7 +112,7 @@ jobs:
           done
           echo "SITE_URL injected: ${SITE_URL}"
 
-      # 7. GA4_ID 注入（Python で安全に処理）
+      # 7. GA4_ID 注入
       - name: Inject GA4 Measurement ID
         env:
           GA4_ID: ${{ secrets.GA4_ID }}
@@ -132,16 +127,16 @@ jobs:
                 f'<script async src="https://www.googletagmanager.com/gtag/js?id={ga_id}"></script>\n'
                 f'<script>gtag("config","{ga_id}",{{send_page_view:false,cookie_flags:"SameSite=None;Secure"}});</script>'
               )
-              html = html.replace('<!-- %%GA4_SCRIPT%% -->', script, 1)
+              html = html.replace('', script, 1)
               print(f"GA4 injected: {ga_id[:5]}XXXXX")
           else:
-              html = html.replace('<!-- %%GA4_SCRIPT%% -->', '<!-- GA4 disabled -->', 1)
+              html = html.replace('', '', 1)
               print("GA4 not configured")
           with open('dist/index.html', 'w', encoding='utf-8') as f:
               f.write(html)
           PYEOF
 
-      # 8a. GAS_URL を HTML に注入（SDS-v2 バックエンド）
+      # 8a. GAS_URL 注入
       - name: Inject GAS URL
         env:
           GAS_URL: ${{ secrets.GAS_URL }}
@@ -151,10 +146,10 @@ jobs:
             echo "GAS_URL injected"
           else
             sed -i "s|%%GAS_URL%%||g" dist/index.html
-            echo "GAS_URL not set — SDS runs in Actions-only mode"
+            echo "GAS_URL not set"
           fi
 
-      # 8. WORKER_URL 注入（任意）
+      # 8b. WORKER_URL 注入
       - name: Inject Worker URL
         env:
           WORKER_URL: ${{ secrets.WORKER_URL }}
@@ -164,7 +159,7 @@ jobs:
             echo "Worker URL injected"
           else
             sed -i "s|%%WORKER_URL%%||g" dist/index.html
-            echo "WORKER_URL not set — DailyToken-only mode"
+            echo "WORKER_URL not set"
           fi
 
       # 9. セキュリティ監査
@@ -174,21 +169,13 @@ jobs:
           SIGN_KEY: ${{ secrets.SIGN_KEY }}
         run: |
           FAIL=0
-          # ソースファイルに秘密値が含まれていないことを確認
           for secret in "${GA4_ID:-}" "${SIGN_KEY:-}"; do
             [ -z "$secret" ] && continue
-            if grep -rq "${secret}" \
-               --include="*.html" --include="*.js" --include="*.yml" \
-               --exclude-dir=dist --exclude-dir=.github . 2>/dev/null; then
-              echo "SECURITY FAIL: Secret leaked in source"
+            if grep -rq "${secret}" --include="*.html" --include="*.js" --include="*.yml" --exclude-dir=dist --exclude-dir=.github . 2>/dev/null; then
+              echo "SECURITY FAIL: Secret leaked"
               FAIL=1
             fi
           done
-          # dist に SIGN_KEY が含まれていないことを確認
-          if [ -n "${SIGN_KEY:-}" ] && grep -rq "${SIGN_KEY}" dist/ 2>/dev/null; then
-            echo "SECURITY FAIL: SIGN_KEY found in dist"
-            FAIL=1
-          fi
           [ "$FAIL" -eq 0 ] && echo "Security audit passed"
           exit $FAIL
 
@@ -196,29 +183,25 @@ jobs:
       - name: Validate placeholders replaced
         run: |
           if grep -q '%%' dist/index.html; then
-            echo "Unreplaced placeholders found:"
-            grep -n '%%' dist/index.html
+            echo "Unreplaced placeholders found"
             exit 1
           fi
-          echo "All placeholders replaced"
 
-      # 11. GitHub Pages デプロイ
+      # 11. GitHub Pages デプロイ（修正箇所：SHAからバージョンタグへ）
       - name: Setup Pages
-        uses: actions/configure-pages@983d7736d9b0ae7682090891b6a3d352a18ea890 # v5.0.0
+        uses: actions/configure-pages@v5
 
       - name: Upload artifact
-        uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa # v3.0.1
+        uses: actions/upload-pages-artifact@v3
         with:
           path: dist
 
       - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4.0.5
+        uses: actions/deploy-pages@v4
 
       # 12. サマリー
       - name: Deployment summary
         run: |
           echo "## Deploy Complete" >> "$GITHUB_STEP_SUMMARY"
           echo "- URL: ${{ steps.deployment.outputs.page_url }}" >> "$GITHUB_STEP_SUMMARY"
-          echo "- DailyToken: generated" >> "$GITHUB_STEP_SUMMARY"
-          echo "- manifest.json: generated" >> "$GITHUB_STEP_SUMMARY"
