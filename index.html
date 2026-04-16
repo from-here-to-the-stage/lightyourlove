@@ -57,125 +57,6 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Light Route">
 
-<!-- ══════════════════════════════════════════════════
-     JSON-LD 構造化データ
-     AIO (AI Overview) への最重要シグナル
-     BTSへの言及はここが主戦場
-════════════════════════════════════════════════════ -->
-<script type="application/ld+json">
-{
-  "@context": "https://schema.org",
-  "@graph": [
-    {
-      "@type": "WebApplication",
-      "@id": "%%SITE_URL%%/#app",
-      "name": "From Here. To the Stage.",
-      "alternateName": "BTS Light Route",
-      "description": "BTS World Tour 2026 の全公演スケジュールを大円航路で可視化し、開演1時間前にファンが会場へ光を送れる非公式ファン体験アプリ。",
-      "url": "%%SITE_URL%%",
-      "applicationCategory": "EntertainmentApplication",
-      "operatingSystem": "All",
-      "browserRequirements": "Requires JavaScript. Mobile-first.",
-      "inLanguage": ["ja", "en"],
-      "isAccessibleForFree": true,
-      "author": {
-        "@type": "Person",
-        "name": "Unofficial Developer"
-      },
-      "about": {
-        "@type": "MusicGroup",
-        "name": "BTS",
-        "alternateName": "방탄소년단",
-        "url": "https://weverse.io/bts"
-      },
-      "disclaimer": "This is an unofficial project not affiliated with or endorsed by any official party."
-    },
-    {
-      "@type": "FAQPage",
-      "@id": "%%SITE_URL%%/#faq",
-      "mainEntity": [
-        {
-          "@type": "Question",
-          "name": "BTS World Tour 2026 の日程は？",
-          "acceptedAnswer": {
-            "@type": "Answer",
-            "text": "BTS World Tour 2026は2026年4月9日に韓国・高陽（Goyang Stadium）でスタートし、東京・北米・ヨーロッパ・ラテンアメリカ・アジア・オセアニアを経て2027年3月にマニラで終了。全33都市66公演予定。"
-          }
-        },
-        {
-          "@type": "Question",
-          "name": "What cities are on the BTS 2026 World Tour?",
-          "acceptedAnswer": {
-            "@type": "Answer",
-            "text": "BTS 2026 World Tour cities include Goyang, Tokyo, Tampa, El Paso, Mexico City, Stanford, Las Vegas, Madrid, Brussels, London, Munich, Paris, East Rutherford, Foxborough, Baltimore, Arlington, Toronto, Chicago, Los Angeles, Bogotá, Lima, Santiago, Buenos Aires, São Paulo, Kaohsiung, Bangkok, Kuala Lumpur, Singapore, Jakarta, Melbourne, Sydney, Hong Kong, and Manila."
-          }
-        },
-        {
-          "@type": "Question",
-          "name": "このアプリはBTS公式ですか？",
-          "acceptedAnswer": {
-            "@type": "Answer",
-            "text": "いいえ。From Here. To the Stage. はいかなる公式組織とも無関係の非公式プロジェクトです。個人情報は収集せず、ファンが会場への光の航路を可視化するための体験ツールです。"
-          }
-        }
-      ]
-    },
-    {
-      "@type": "ItemList",
-      "name": "BTS World Tour 2026 公演一覧",
-      "description": "BTS World Tour 2026 の全公演スケジュール",
-      "numberOfItems": 66,
-      "itemListElement": [
-        {"@type":"ListItem","position":1,"name":"Goyang, Korea — Goyang Stadium","description":"Apr 9, 11, 12, 2026"},
-        {"@type":"ListItem","position":2,"name":"Tokyo, Japan — Tokyo Dome","description":"Apr 17–18, 2026"},
-        {"@type":"ListItem","position":3,"name":"Tampa, FL — Raymond James Stadium","description":"Apr 25–28, 2026"},
-        {"@type":"ListItem","position":4,"name":"El Paso, TX — Sun Bowl Stadium","description":"May 2–3, 2026"},
-        {"@type":"ListItem","position":5,"name":"Mexico City — Estadio GNP Seguros","description":"May 7–10, 2026"},
-        {"@type":"ListItem","position":6,"name":"Stanford, CA — Stanford Stadium","description":"May 16–19, 2026"},
-        {"@type":"ListItem","position":7,"name":"Las Vegas, NV — Allegiant Stadium","description":"May 23–28, 2026"},
-        {"@type":"ListItem","position":8,"name":"Madrid, Spain — Riyadh Air Metropolitano","description":"Jun 26–27, 2026"},
-        {"@type":"ListItem","position":9,"name":"Brussels, Belgium — King Baudouin Stadium","description":"Jul 1–2, 2026"},
-        {"@type":"ListItem","position":10,"name":"London, UK — Tottenham Hotspur Stadium","description":"Jul 6–7, 2026"},
-        {"@type":"ListItem","position":11,"name":"Munich, Germany — Allianz Arena","description":"Jul 11–12, 2026"},
-        {"@type":"ListItem","position":12,"name":"Paris, France — Stade de France","description":"Jul 17–18, 2026"},
-        {"@type":"ListItem","position":13,"name":"East Rutherford, NJ — MetLife Stadium","description":"Aug 1–2, 2026"},
-        {"@type":"ListItem","position":14,"name":"Foxborough, MA — Gillette Stadium","description":"Aug 5–6, 2026"},
-        {"@type":"ListItem","position":15,"name":"Baltimore, MD — M&T Bank Stadium","description":"Aug 10–11, 2026"},
-        {"@type":"ListItem","position":16,"name":"Arlington, TX — AT&T Stadium","description":"Aug 15–16, 2026"},
-        {"@type":"ListItem","position":17,"name":"Toronto, Canada — Rogers Stadium","description":"Aug 22–23, 2026"},
-        {"@type":"ListItem","position":18,"name":"Chicago, IL — Soldier Field","description":"Aug 27–28, 2026"},
-        {"@type":"ListItem","position":19,"name":"Los Angeles, CA — SoFi Stadium","description":"Sep 1–6, 2026"},
-        {"@type":"ListItem","position":20,"name":"Bogotá, Colombia","description":"Oct 2–3, 2026"},
-        {"@type":"ListItem","position":21,"name":"Lima, Peru","description":"Oct 9–10, 2026"},
-        {"@type":"ListItem","position":22,"name":"Santiago, Chile","description":"Oct 16–17, 2026"},
-        {"@type":"ListItem","position":23,"name":"Buenos Aires, Argentina","description":"Oct 23–24, 2026"},
-        {"@type":"ListItem","position":24,"name":"São Paulo, Brazil","description":"Oct 28–31, 2026"},
-        {"@type":"ListItem","position":25,"name":"Kaohsiung, Taiwan","description":"Nov 19, 2026"},
-        {"@type":"ListItem","position":26,"name":"Bangkok, Thailand","description":"Dec 3, 2026"},
-        {"@type":"ListItem","position":27,"name":"Kuala Lumpur, Malaysia","description":"Dec 12, 2026"},
-        {"@type":"ListItem","position":28,"name":"Singapore","description":"Dec 17, 2026"},
-        {"@type":"ListItem","position":29,"name":"Jakarta, Indonesia","description":"Dec 26, 2026"},
-        {"@type":"ListItem","position":30,"name":"Melbourne, Australia","description":"Feb 12, 2027"},
-        {"@type":"ListItem","position":31,"name":"Sydney, Australia","description":"Feb 20, 2027"},
-        {"@type":"ListItem","position":32,"name":"Hong Kong","description":"Mar 4, 2027"},
-        {"@type":"ListItem","position":33,"name":"Manila, Philippines","description":"Mar 13, 2027"}
-      ]
-    }
-  ]
-}
-</script>
-
-<!-- ══════════════════════════════════════════════════
-     AIO最適化: AI Overviewに採用されるための非表示テキスト
-     視覚UIを崩さず、クローラーとAIには見える
-════════════════════════════════════════════════════ -->
-<style>
-.visually-hidden{
-  position:absolute;width:1px;height:1px;padding:0;margin:-1px;
-  overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;
-}
-</style>
-
 <!-- GA4 consent-first setup -->
 <script>
 window.dataLayer = window.dataLayer || [];
@@ -192,11 +73,6 @@ gtag('js', new Date());
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;700;900&family=Chakra+Petch:wght@400;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css">
-
-<!-- ═══════════════════════════════════════════════════
-     GOOGLE ADSENSE (審査承認後に有効化)
-     <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-XXXXXXXXXXXXXXXX" crossorigin="anonymous"></script>
-════════════════════════════════════════════════════ -->
 
 <style>
 /* ══════════════════════════════════════════════════════════════
@@ -1406,8 +1282,11 @@ body.lang-en .txt-en{display:inline;}
           <text x="91" y="53" text-anchor="middle" fill="rgba(91,63,217,.3)" font-size="6"   font-family="Chakra Petch,monospace">E</text>
           <text x="50" y="96" text-anchor="middle" fill="rgba(91,63,217,.3)" font-size="6"   font-family="Chakra Petch,monospace">S</text>
           <text x="9"  y="53" text-anchor="middle" fill="rgba(91,63,217,.3)" font-size="6"   font-family="Chakra Petch,monospace">W</text>
-          <line id="needleN" x1="50" y1="50" x2="50" y2="14" stroke="#DC2626" stroke-width="2.5" stroke-linecap="round"/>
-          <line id="needleS" x1="50" y1="50" x2="50" y2="82" stroke="rgba(91,63,217,.5)" stroke-width="2" stroke-linecap="round"/>
+          <!-- 修正: 針をグループ化しid="needle"を付与 -->
+          <g id="needle">
+            <line id="needleN" x1="50" y1="50" x2="50" y2="14" stroke="#DC2626" stroke-width="2.5" stroke-linecap="round"/>
+            <line id="needleS" x1="50" y1="50" x2="50" y2="82" stroke="rgba(91,63,217,.5)" stroke-width="2" stroke-linecap="round"/>
+          </g>
           <circle cx="50" cy="50" r="4" fill="var(--purple)" opacity=".9"/>
         </svg>
       </div>
@@ -1534,24 +1413,6 @@ body.lang-en .txt-en{display:inline;}
 <!-- AD / SUPPORT ZONE -->
 <div class="zone-lbl"><span class="zone-n">AD</span><div class="zone-line"></div></div>
 <div id="zone-ad">
-  <!--
-  ─── Google AdSense (審査承認後に下記を有効化) ──────────────────────
-  <ins class="adsbygoogle"
-       style="display:block;border-radius:var(--r);"
-       data-ad-client="ca-pub-XXXXXXXXXXXXXXXX"
-       data-ad-slot="XXXXXXXXXX"
-       data-ad-format="rectangle"
-       data-full-width-responsive="false"
-       data-ad-width="300" data-ad-height="100"></ins>
-  <script>(adsbygoogle = window.adsbygoogle || []).push({});</script>
-  ─────────────────────────────────────────────────────────────────── -->
-
-  <!--
-  ─── Amazon Associates (BTS公式グッズ) ────────────────────────────────
-  Amazon アソシエイトのリンクに差し替えてください
-  ─────────────────────────────────────────────────────────────────── -->
-
-  <!-- デフォルト: Ko-fi サポートボタン (承認不要・即時設置可) -->
   <div class="ad-slot">
     <div class="support-content">
       <div class="ad-lbl">SUPPORT / サポート</div>
@@ -1610,10 +1471,7 @@ body.lang-en .txt-en{display:inline;}
   <button id="shareBtn">📤&nbsp;<span class="txt-jp">航路画像をシェア · 個人情報ゼロ</span><span class="txt-en">SHARE ROUTE IMAGE · ZERO PERSONAL DATA</span></button>
 </div>
 
-<!-- ══════════════════════════════════════════════
-     CONSENT BANNER
-     GA4同意バナー — GDPR / 個人情報保護法対応
-══════════════════════════════════════════════ -->
+<!-- 同意バナー -->
 <div id="consentBanner">
   <div class="cb-title">
     <span class="txt-jp">🌐 アクセス解析についての同意</span>
@@ -1644,7 +1502,7 @@ body.lang-en .txt-en{display:inline;}
 </div>
 </div><!-- /app -->
 
-<!-- ══ CHARGE OVERLAY ══ 毎日チャージエフェクト ══ -->
+<!-- CHARGE OVERLAY -->
 <div id="chargeOverlay">
   <canvas id="chargeCanvas"></canvas>
   <div class="charge-inner">
@@ -1662,7 +1520,7 @@ body.lang-en .txt-en{display:inline;}
   </div>
 </div>
 
-<!-- ══ SEND OVERLAY ══ 送出エフェクト（派手） ══ -->
+<!-- SEND OVERLAY -->
 <div id="sendOverlay">
   <canvas id="sendCanvas"></canvas>
   <div class="send-inner">
@@ -1678,7 +1536,7 @@ body.lang-en .txt-en{display:inline;}
   </div>
 </div>
 
-<!-- ══ COUNTDOWN OVERLAY ══ 開演1時間前カウントダウン ══ -->
+<!-- COUNTDOWN OVERLAY -->
 <div id="countdownOverlay">
   <canvas id="countdownBg"></canvas>
   <div class="cd-content">
@@ -1703,7 +1561,7 @@ body.lang-en .txt-en{display:inline;}
   </div>
 </div>
 
-<!-- ══ ARRIVAL OVERLAY ══ 開演時刻点灯 ══ -->
+<!-- ARRIVAL OVERLAY -->
 <div id="showtimeOverlay">
   <canvas id="arrivalCanvas"></canvas>
   <div class="arrival-inner">
@@ -1759,6 +1617,22 @@ body.lang-en .txt-en{display:inline;}
 <script src="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js"></script>
 <script>
 'use strict';
+
+// ════════════════════════════════════════════════
+// ガード節付きDOM取得ユーティリティ
+// ════════════════════════════════════════════════
+function getEl(id) {
+  const el = document.getElementById(id);
+  if (!el) console.warn(`[DOM] Element #${id} not found`);
+  return el;
+}
+
+function setText(id, text) {
+  const el = getEl(id);
+  if (el) el.textContent = text;
+  return el;
+}
+
 // ════════════════════════════════════════════════
 // MEMBERS
 // ════════════════════════════════════════════════
@@ -1773,7 +1647,7 @@ const MEMBERS=[
 ];
 
 // ════════════════════════════════════════════════
-// TOUR DATA — 2026–2027 完全版
+// TOUR DATA
 // ════════════════════════════════════════════════
 const REGIONS=[
   {label:'🇰🇷🇯🇵 ASIA (APR)',labelJP:'🇰🇷🇯🇵 アジア (4月)',cities:[
@@ -1833,14 +1707,12 @@ REGIONS.forEach(r=>r.cities.forEach(c=>{
   if(c.st){
     const showTime = new Date(c.st);
     const diff = showTime - _now;
-    if(diff < -7200000) status = 'past';       // 開演2時間後以降は過去
-    else if(diff <= 3600000 && diff > -7200000) status = 'next'; // 前後
+    if(diff < -7200000) status = 'past';
+    else if(diff <= 3600000 && diff > -7200000) status = 'next';
     else status = 'future';
   }
-  // 最初のfuture/nextを'next'にする
   TOUR.push({...c, status, regionLabel:r.label, regionLabelJP:r.labelJP, isTBA:!c.st||c.venue==='TBA'});
 }));
-// 最も近い未来の公演を'next'に設定
 let foundNext = false;
 for(let i=0;i<TOUR.length;i++){
   if(TOUR[i].status==='past') continue;
@@ -1849,9 +1721,7 @@ for(let i=0;i<TOUR.length;i++){
 }
 
 // ════════════════════════════════════════════════
-// SECURITY MODULE — HMAC-SHA256 + manifest.json
-// GitHub Actions が毎日 manifest.json を生成
-// キー = HMAC(GITHUB_SECRET, YYYY-MM-DD) → フロントには秘密鍵非公開
+// SECURITY MODULE
 // ════════════════════════════════════════════════
 const Sec = {
   manifest: null,
@@ -1859,7 +1729,7 @@ const Sec = {
     try {
       const r = await fetch('./manifest.json?_=' + Date.now(), {cache:'no-store', signal: AbortSignal.timeout(3000)});
       if(r.ok) this.manifest = await r.json();
-    } catch(e) { /* offline / manifest未生成 → graceful fallback */ }
+    } catch(e) { /* offline fallback */ }
   },
   async hmac(data, keyHex) {
     const keyBytes = new Uint8Array(keyHex.match(/.{2}/g).map(h=>parseInt(h,16)));
@@ -1897,52 +1767,22 @@ const Sec = {
 };
 
 // ════════════════════════════════════════════════
-// DAILY TOKEN MODULE — GitHub Actions内完結の日次制限
-// Actions が /tokens/YYYY-MM-DD.json を毎日生成・公開
-// SIGN_KEY は Secret のみ存在 → ブラウザに届かない
-// ════════════════════════════════════════════════
-// ════════════════════════════════════════════════════════
 // SDS-v2 CLIENT MODULE
-// 提案の精査・改良実装版
-//
-// 改良点:
-//   [1] Salt 64文字 (フルSHA-256, 提案の16文字から強化)
-//   [2] Nonce付き署名でリプレイ攻撃を防止
-//   [3] GAS と bash の文字コードを TextEncoder で統一
-//   [4] 二重ストレージ (localStorage + sessionStorage)
-//   [5] GAS が使えない場合は DailyToken (Actions内) にフォールバック
-//
-// 信頼チェーン:
-//   SIGN_KEY (Secret)
-//     ↓ GitHub Actions が毎日生成
-//   /tokens/YYYY-MM-DD.json  (公開)
-//     ↓ クライアントが fetch
-//   HMAC(salt, fingerprint|showKey|nonce|date)
-//     ↓ GAS に送信
-//   GAS が SIGN_KEY から salt を再現して検証
-// ════════════════════════════════════════════════════════
+// ════════════════════════════════════════════════
 const SDS = {
-  // GAS エンドポイント — deploy.yml が %%GAS_URL%% を置換
-  // ソースコードには書かない
   GAS_URL:     '%%GAS_URL%%',
   STORAGE_KEY: 'bts_lr_sds_v2',
   SESSION_KEY: 'bts_lr_sds_sess',
   FP_KEY:      'bts_lr_fp_v1',
 
-  // ── GAS が有効か判定 ──────────────────────────────
   isGASEnabled() {
     return this.GAS_URL && !this.GAS_URL.startsWith('%%') && this.GAS_URL.startsWith('https://');
   },
 
-  // ── JST 日付文字列 (GASと統一) ────────────────────
   jstDateStr() {
-    // JST = UTC+9
     return new Date(Date.now() + 9*60*60*1000).toISOString().slice(0, 10);
   },
 
-  // ── 今日の Salt を取得 ─────────────────────────────
-  // /tokens/YYYY-MM-DD.json は GitHub Actions が生成
-  // salt フィールドは 64文字 (フルSHA-256 hex)
   _saltCache: null,
   async getSalt() {
     const today = this.jstDateStr();
@@ -1953,34 +1793,25 @@ const SDS = {
       });
       if(!res.ok) return null;
       const data = await res.json();
-      // 有効期限チェック
       if(data.expires && new Date() >= new Date(data.expires)) return null;
       this._saltCache = { date: today, salt: data.salt || data.token };
       return this._saltCache.salt;
     } catch(e) { return null; }
   },
 
-  // ── Nonce 生成 (リプレイ攻撃防止) ─────────────────
-  // 各送信に一意のIDを付与。GAS は同一nonceを2回受け付けない
   async generateNonce() {
     const buf = new Uint8Array(16);
     crypto.getRandomValues(buf);
     return Array.from(buf).map(b=>b.toString(16).padStart(2,'0')).join('');
   },
 
-  // ── 署名生成 ────────────────────────────────────
-  // SHA-256(salt + fingerprint + "|" + showKey + "|" + nonce + "|" + date)
-  // GAS の Utilities.computeDigest(SHA_256, same_string, UTF_8) と完全一致
-  // 注: GAS は HMAC をネイティブサポートしないため SHA-256 ダイジェストを使用
   async sign(salt, fingerprint, showKey, nonce, date) {
-    const enc = new TextEncoder(); // UTF-8
-    // GAS側: salt + fingerprint + "|" + showKey + "|" + nonce + "|" + date
+    const enc = new TextEncoder();
     const msg = enc.encode(salt + fingerprint + '|' + showKey + '|' + nonce + '|' + date);
     const buf = await crypto.subtle.digest('SHA-256', msg);
     return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
   },
 
-  // ── デバイスフィンガープリント ──────────────────────
   async getFingerprint() {
     const saved = localStorage.getItem(this.FP_KEY);
     if(saved && /^[0-9a-f]{64}$/i.test(saved)) return saved;
@@ -1997,7 +1828,6 @@ const SDS = {
     return fp;
   },
 
-  // ── ローカル送信記録 ──────────────────────────────
   loadLocal() {
     try { return JSON.parse(localStorage.getItem(this.STORAGE_KEY) || '{}'); } catch(e) { return {}; }
   },
@@ -2005,70 +1835,57 @@ const SDS = {
     try { return JSON.parse(sessionStorage.getItem(this.SESSION_KEY) || '{}'); } catch(e) { return {}; }
   },
 
-  // ── ローカル二重チェック (提案の二重チェックを実装) ──
   isLocalSent(showKey) {
     const today = this.jstDateStr();
     const local   = this.loadLocal();
     const session = this.loadSession();
     const lr = local[showKey];
     const sr = session[showKey];
-    // どちらかに今日の記録があれば送信済み
     if(lr?.date === today) return true;
     if(sr?.date === today) return true;
     return false;
   },
 
-  // ── GAS に送信して検証 ────────────────────────────
   async sendToGAS(showKey, memberId, fingerprint, sig, nonce, date) {
     const res = await fetch(this.GAS_URL, {
       method: 'POST',
-      // GAS は CORS 制約があるため text/plain で送信
       headers: { 'Content-Type': 'text/plain' },
       body: JSON.stringify({
         showKey,
         memberId,
-        fingerprint,   // GAS はこれをレート制限のキーにも使う
+        fingerprint,
         sig,
         nonce,
         date,
-        v: 2           // SDS バージョン
+        v: 2
       }),
       signal: AbortSignal.timeout(6000)
     });
-    return await res.text(); // "Success" | "Duplicate" | "Invalid..." | "Expired..."
+    return await res.text();
   },
 
-  // ── ローカルに記録 (署名付き) ──────────────────────
   saveLocal(showKey, memberId, sig, nonce, date) {
     const rec = { date, memberId, sig, nonce, savedAt: new Date().toISOString() };
     const local = this.loadLocal();
     local[showKey] = rec;
     localStorage.setItem(this.STORAGE_KEY, JSON.stringify(local));
-    // sessionStorage にも同時保存 (提案の二重ストレージ)
     const sess = this.loadSession();
     sess[showKey] = { date, memberId };
     sessionStorage.setItem(this.SESSION_KEY, JSON.stringify(sess));
   },
 
-  // ══════════════════════════════════════════════════
-  // メイン: 送信可否チェック + GAS認証
-  // doSend から呼び出す唯一のエントリポイント
-  // ══════════════════════════════════════════════════
   async checkAndSend(showKey, memberId) {
     const date = this.jstDateStr();
 
-    // [Layer 1] ローカル二重チェック (即時・オフライン対応)
     if(this.isLocalSent(showKey)) {
       return { ok: false, reason: 'local_duplicate', source: 'local' };
     }
 
     const fp = await this.getFingerprint();
 
-    // GAS が設定されている場合のみサーバー検証を実行
     if(this.isGASEnabled()) {
       const salt = await this.getSalt();
       if(!salt) {
-        // Salt取得失敗 → ローカルのみで判定 (ネットワーク障害時の graceful degradation)
         console.warn('[SDS] Salt fetch failed — local-only mode');
         return { ok: true, reason: 'local_fallback', source: 'local' };
       }
@@ -2080,12 +1897,10 @@ const SDS = {
         const result = await this.sendToGAS(showKey, memberId, fp, sig, nonce, date);
 
         if(result === 'Success') {
-          // [Layer 2] GAS検証成功 → ローカルに記録
           this.saveLocal(showKey, memberId, sig, nonce, date);
           return { ok: true, source: 'gas' };
         }
         if(result === 'Duplicate') {
-          // GAS が「すでに送信済み」と判定 → ローカルも同期
           this.saveLocal(showKey, memberId, sig, nonce, date);
           return { ok: false, reason: 'gas_duplicate', source: 'gas' };
         }
@@ -2095,16 +1910,13 @@ const SDS = {
         if(result.startsWith('Expired')) {
           return { ok: false, reason: 'expired_date', source: 'gas' };
         }
-        // 予期しないレスポンス → フォールバック
         console.warn('[SDS] Unexpected GAS response:', result);
         return { ok: true, reason: 'gas_fallback', source: 'local' };
       } catch(e) {
-        // GAS タイムアウト等 → ローカルフォールバック
         console.warn('[SDS] GAS unreachable — local fallback:', e.message);
         return { ok: true, reason: 'network_fallback', source: 'local' };
       }
     } else {
-      // GAS 未設定 → DailyToken (Actions内) のみで判定
       const salt = await this.getSalt();
       if(salt) {
         const nonce = await this.generateNonce();
@@ -2118,7 +1930,6 @@ const SDS = {
   }
 };
 
-// 後方互換: 旧DailyToken APIを SDS にブリッジ
 const DailyToken = {
   STORAGE_KEY: SDS.STORAGE_KEY,
   jstDateStr()  { return SDS.jstDateStr(); },
@@ -2127,7 +1938,6 @@ const DailyToken = {
   showKeyFor(v) { return `${v.fd}_${v.city}`; },
   async isAlreadySent(showKey) { return SDS.isLocalSent(showKey); },
   async recordSend(showKey, fp, memberId) {
-    // SDSのsaveLocalへ委譲（GAS通信は doSend 内の SDS.checkAndSend で実施済み）
     SDS.saveLocal(showKey, memberId, 'post-send', 'bridge', SDS.jstDateStr());
   }
 };
@@ -2147,7 +1957,7 @@ function markSent(v, m, pwr) {
 }
 
 // ════════════════════════════════════════════════
-// POWER / STREAK SYSTEM (毎日の訪問で蓄積)
+// POWER / STREAK SYSTEM
 // ════════════════════════════════════════════════
 const POWER_KEY = 'bts_lr_power_v1';
 let powerData = {lastDate:'',streak:0,total:0};
@@ -2164,7 +1974,6 @@ function recordDailyVisit() {
   savePower();
 }
 function savePower() { Sec.save(POWER_KEY, powerData); }
-// Power 0–100: 訪問累計 × 0.8 + 連続日数 × 2.5 (上限100)
 function getPower() { return Math.min(powerData.total*0.8 + powerData.streak*2.5, 100); }
 
 // ════════════════════════════════════════════════
@@ -2179,33 +1988,22 @@ function resetDailyIfNeeded() {
     Sec.save(DAILY_KEY, dailyData);
   }
 }
-// ════════════════════════════════════════════════
-// DAILY CHECKIN — 1日1メンバーのみ・キャンセル不可
-// 仕様: 1日に1人だけ選択できる。選んだら確定。
-// 虹 (🌈) は「7日間、毎日違うメンバーを選んだ累計」として別途カウント
-// ════════════════════════════════════════════════
+
 function checkInMember(memberId) {
   resetDailyIfNeeded();
-
-  // 【バグ修正1】すでに今日誰かを選んでいたらブロック（キャンセル不可）
   if(dailyData.members.length >= 1) {
     return { action: 'locked', reason: 'already_selected' };
   }
-
-  // 新規選択（1人目のみ通過）
-  dailyData.members = [memberId];           // 必ず1人だけ
+  dailyData.members = [memberId];
   powerData.total = (powerData.total||0) + 1;
   savePower();
   Sec.save(DAILY_KEY, dailyData);
-
-  // ★ チャージエフェクト発動
   setTimeout(()=> showChargeEffect(MEMBERS.find(m=>m.id===memberId)||activeMember), 100);
-
   return { action: 'added', memberId };
 }
 
 // ════════════════════════════════════════════════
-// TITLE COMPUTATION (称号計算)
+// TITLE COMPUTATION
 // ════════════════════════════════════════════════
 const TITLE_TIERS = [
   {min:0,  icon:'—',    jp:'—',             en:'—',              next:1},
@@ -2219,8 +2017,6 @@ const TITLE_TIERS = [
 function computeTitles() {
   const stars = Object.keys(sentShows).length;
   const tier  = [...TITLE_TIERS].reverse().find(t=>stars>=t.min) || TITLE_TIERS[0];
-
-  // Member loyalty
   const mc = {};
   Object.values(sentShows).forEach(e=>{ const id=typeof e==='object'?e.m:e; mc[id]=(mc[id]||0)+1; });
   const topEntry = Object.entries(mc).sort((a,b)=>b[1]-a[1])[0];
@@ -2233,14 +2029,11 @@ function computeTitles() {
     else if(cnt>=10)         oshi={jp:`${m.jp}の光`,        en:`LIGHT OF ${m.name}`,             color:m.color};
     else if(cnt>=3)          oshi={jp:`${m.jp}の声`,        en:`VOICE OF ${m.name}`,             color:m.color};
   }
-
-  // Rainbow title
   const rc = dailyData.rainbowCount||0;
   let rainbow = null;
   if(rc>=7)      rainbow={jp:'🌈✨ 虹の伝説',   en:'🌈✨ RAINBOW LEGEND'};
   else if(rc>=3) rainbow={jp:'🌈🌈 虹の戦士',   en:'🌈🌈 RAINBOW WARRIOR'};
   else if(rc>=1) rainbow={jp:'🌈 虹の夢',       en:'🌈 RAINBOW DREAMER'};
-
   return {tier, stars, oshi, rainbow};
 }
 
@@ -2256,36 +2049,45 @@ let userLat = null, userLng = null, geoGranted = false;
 let planeT=0, planeDir=1;
 const shownArrival = new Set();
 try { JSON.parse(localStorage.getItem('bts_lr_arr')||'[]').forEach(k=>shownArrival.add(k)); } catch(e){}
-const WINDOW_MS = 60*60*1000; // 送信ウィンドウ = 1時間
+const WINDOW_MS = 60*60*1000;
 
 // ════════════════════════════════════════════════
 // LANGUAGE
 // ════════════════════════════════════════════════
 function applyLangToCards(){
-  // .txt-jp/.txt-en のインライン display を body.lang-en で制御
-  // ※ CSSなし環境でも動作するよう JS で直接制御
   const isEn = lang==='en';
-  document.querySelectorAll('.txt-jp').forEach(el=>el.style.display=isEn?'none':'');
-  document.querySelectorAll('.txt-en').forEach(el=>el.style.display=isEn?'':'none');
+  document.querySelectorAll('.txt-jp').forEach(el=>{
+    if(el) el.style.display=isEn?'none':'';
+  });
+  document.querySelectorAll('.txt-en').forEach(el=>{
+    if(el) el.style.display=isEn?'':'none';
+  });
 }
 function toggleLang(){
   lang = lang==='jp'?'en':'jp';
   document.body.classList.toggle('lang-en', lang==='en');
-  document.getElementById('langActive').textContent = lang.toUpperCase();
-  document.getElementById('langOther').textContent  = lang==='jp'?'EN':'JP';
+  const langActive = getEl('langActive');
+  const langOther = getEl('langOther');
+  if(langActive) langActive.textContent = lang.toUpperCase();
+  if(langOther) langOther.textContent  = lang==='jp'?'EN':'JP';
   document.documentElement.lang = lang==='jp'?'ja':'en';
   applyLangToCards();
   refreshStep(); updateSendBtnText(); updateCountdown(); updateShowtime();
   renderTitleZone(); refreshDailyUI();
 }
-// langBtn listener is registered in init()
 
 // ════════════════════════════════════════════════
 // MATH
 // ════════════════════════════════════════════════
 const toR=d=>d*Math.PI/180, toD=r=>r*180/Math.PI;
-function hav(a,b,c,d){const R=6371,e=Math.sin(toR(c-a)/2)**2+Math.cos(toR(a))*Math.cos(toR(c))*Math.sin(toR(d-b)/2)**2;return R*2*Math.asin(Math.sqrt(e));}
-function brng(a,b,c,d){const p1=toR(a),p2=toR(c),Dl=toR(d-b),y=Math.sin(Dl)*Math.cos(p2),x=Math.cos(p1)*Math.sin(p2)-Math.sin(p1)*Math.cos(p2)*Math.cos(Dl);return(toD(Math.atan2(y,x))+360)%360;}
+function hav(a,b,c,d){
+  const R=6371,e=Math.sin(toR(c-a)/2)**2+Math.cos(toR(a))*Math.cos(toR(c))*Math.sin(toR(d-b)/2)**2;
+  return R*2*Math.asin(Math.sqrt(e));
+}
+function brng(a,b,c,d){
+  const p1=toR(a),p2=toR(c),Dl=toR(d-b),y=Math.sin(Dl)*Math.cos(p2),x=Math.cos(p1)*Math.sin(p2)-Math.sin(p1)*Math.cos(p2)*Math.cos(Dl);
+  return(toD(Math.atan2(y,x))+360)%360;
+}
 function gc(a,b,c,d,n=100){
   const pts=[],p1=toR(a),l1=toR(b),p2=toR(c),l2=toR(d);
   const dist=2*Math.asin(Math.sqrt(Math.sin((p2-p1)/2)**2+Math.cos(p1)*Math.cos(p2)*Math.sin((l2-l1)/2)**2));
@@ -2307,7 +2109,8 @@ function blbl(b){return BLBL[Math.round(b/22.5)%16];}
 // STARS BACKGROUND
 // ════════════════════════════════════════════════
 function initStars(){
-  const el=document.getElementById('stars');
+  const el=getEl('stars');
+  if(!el) return;
   for(let i=0;i<72;i++){
     const s=document.createElement('div');s.className='star';
     const sz=Math.random()*1.8+.7;
@@ -2325,7 +2128,8 @@ function initStars(){
 const MONJP=['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
 
 function initCards(){
-  const wrap=document.getElementById('schedCards');
+  const wrap=getEl('schedCards');
+  if(!wrap) return;
   wrap.innerHTML='';
   let lastRegion='';
   const mons=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -2361,99 +2165,114 @@ function initCards(){
       </div>
       <div style="font-size:11px;color:var(--dim);">${v.shows.slice(0,3).join(' / ')}${v.shows.length>3?'…':''}</div>
     </div>`;
-    slide.querySelector('.scard').addEventListener('click',()=>selectStop(v,i));
+    const cardEl = slide.querySelector('.scard');
+    if(cardEl) cardEl.addEventListener('click',()=>selectStop(v,i));
     wrap.appendChild(slide);
   });
 
-  // Swiper + カスタムスクロールバー
-  let sw;
   if(typeof Swiper!=='undefined'){
-    sw=new Swiper('#schedSwiper',{slidesPerView:'auto',spaceBetween:8,freeMode:true,grabCursor:true});
-    const track=document.getElementById('schedTrack');
-    const thumb=document.getElementById('schedThumb');
-    function syncBar(){
-      if(!track||!thumb) return;
-      const wr=document.querySelector('#schedSwiper .swiper-wrapper');
-      if(!wr) return;
-      const total=wr.scrollWidth, view=sw.width||track.offsetWidth;
-      if(total<=view){track.style.display='none';return;}
-      track.style.display='';
-      const ratio=Math.min(view/total,1);
-      const tw=Math.max(ratio*track.offsetWidth,24);
-      const maxL=track.offsetWidth-tw;
-      const prog=sw.progress||0;
-      thumb.style.width=tw+'px';
-      thumb.style.left=Math.max(0,Math.min(maxL,prog*maxL))+'px';
+    let sw;
+    try {
+      sw=new Swiper('#schedSwiper',{slidesPerView:'auto',spaceBetween:8,freeMode:true,grabCursor:true});
+      const track=getEl('schedTrack');
+      const thumb=getEl('schedThumb');
+      function syncBar(){
+        if(!track||!thumb) return;
+        const wr=document.querySelector('#schedSwiper .swiper-wrapper');
+        if(!wr) return;
+        const total=wr.scrollWidth, view=sw.width||track.offsetWidth;
+        if(total<=view){track.style.display='none';return;}
+        track.style.display='';
+        const ratio=Math.min(view/total,1);
+        const tw=Math.max(ratio*track.offsetWidth,24);
+        const maxL=track.offsetWidth-tw;
+        const prog=sw.progress||0;
+        thumb.style.width=tw+'px';
+        thumb.style.left=Math.max(0,Math.min(maxL,prog*maxL))+'px';
+      }
+      sw.on('progress',syncBar);
+      sw.on('setTranslate',syncBar);
+      setTimeout(syncBar,200);
+      if(track) track.addEventListener('click',e=>{
+        const rect=track.getBoundingClientRect();
+        const prog=(e.clientX-rect.left)/rect.width;
+        sw.setProgress(prog,0);
+        syncBar();
+      });
+    } catch(e) {
+      console.warn('[Swiper] Init failed:', e);
     }
-    sw.on('progress',syncBar);
-    sw.on('setTranslate',syncBar);
-    setTimeout(syncBar,200);
-    if(track) track.addEventListener('click',e=>{
-      const rect=track.getBoundingClientRect();
-      const prog=(e.clientX-rect.left)/rect.width;
-      sw.setProgress(prog,0);
-      syncBar();
-    });
   }
 }
-function refreshCardSent(){TOUR.forEach((v,i)=>{const c=document.getElementById('card'+i);if(c)c.classList.toggle('show-sent',isSent(v));});}
+function refreshCardSent(){
+  TOUR.forEach((v,i)=>{
+    const c=getEl('card'+i);
+    if(c) c.classList.toggle('show-sent',isSent(v));
+  });
+}
 
 // ════════════════════════════════════════════════
 // SELECT STOP
 // ════════════════════════════════════════════════
-
-// ── 直近の送信対象公演を自動判定 ══════════════════
-// 優先順位: 1) 送信ウィンドウ内(開演1h前〜開演時刻)
-//           2) 次回公演（status='next'）
-//           3) 最初の未送信公演
 function findNextTarget(){
   const now = new Date();
-  // 1. 送信ウィンドウ内の公演
   for(const v of TOUR){
     if(!v.st || v.isTBA || isSent(v)) continue;
     const diff = new Date(v.st) - now;
     if(diff >= 0 && diff <= WINDOW_MS) return v;
   }
-  // 2. 次回公演（status='next'）
   for(const v of TOUR){
     if(v.status==='next' && !isSent(v)) return v;
   }
-  // 3. 最初の未送信・未開演公演
   for(const v of TOUR){
     if(!isSent(v)){
       if(!v.st) return v;
       if(new Date(v.st) > now) return v;
     }
   }
-  // 全送信済みなら最後の公演
   return TOUR[TOUR.length-1];
 }
 function selectStop(v,i){
   const fi=Math.max(0,i-1);setRoute(TOUR[fi],v);targetStop=v;
-  document.querySelectorAll('.scard').forEach(c=>c.classList.remove('sel'));
-  const card=document.getElementById('card'+i);if(card)card.classList.add('sel');
+  document.querySelectorAll('.scard').forEach(c=>{
+    if(c) c.classList.remove('sel');
+  });
+  const card=getEl('card'+i);
+  if(card) card.classList.add('sel');
   const d=new Date(v.fd+'T12:00:00Z');
-  document.getElementById('tCity').textContent=v.city+(v.reg?', '+v.reg:'');
+  const tCity = getEl('tCity');
+  const tDetail = getEl('tDetail');
+  const tSent = getEl('tSent');
+  const tSentTxt = getEl('tSentTxt');
+  
+  if(tCity) tCity.textContent=v.city+(v.reg?', '+v.reg:'');
   const _mons=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  document.getElementById('tDetail').innerHTML=
+  if(tDetail) tDetail.innerHTML=
     `<span class="txt-jp">${MONJP[d.getUTCMonth()]}${d.getUTCDate()}日 · ${v.venue}</span>`+
     `<span class="txt-en" style="${lang==='jp'?'display:none':''}">${_mons[d.getUTCMonth()]} ${d.getUTCDate()} · ${v.venue}</span>`;
   const sm=sentMem(v);
-  const tSent=document.getElementById('tSent');
-  if(sm){document.getElementById('tSentTxt').innerHTML=`<span class="txt-jp">${sm.jp||sm.name}カラーで送信済み</span><span class="txt-en">Sent as ${sm.name}</span>`;tSent.classList.add('on');}
-  else tSent.classList.remove('on');
+  if(tSent && tSentTxt){
+    if(sm){
+      tSentTxt.innerHTML=`<span class="txt-jp">${sm.jp||sm.name}カラーで送信済み</span><span class="txt-en">Sent as ${sm.name}</span>`;
+      tSent.classList.add('on');
+    } else {
+      tSent.classList.remove('on');
+    }
+  }
   updateShowtime();evaluateSendState();
   if(geoGranted&&userLat)updateCompassFromUser();
-  else{const lbl=document.getElementById('compassFromLabel');lbl.textContent=lang==='jp'?`${TOUR[fi].city} → ${v.city} (📍タップで現在地から)`:`${TOUR[fi].city} → ${v.city} (tap 📍 for your location)`;}
+  else{
+    const lbl=getEl('compassFromLabel');
+    if(lbl) lbl.textContent=lang==='jp'?`${TOUR[fi].city} → ${v.city} (📍タップで現在地から)`:`${TOUR[fi].city} → ${v.city} (tap 📍 for your location)`;
+  }
 }
 
 // ════════════════════════════════════════════════
 // MAP
 // ════════════════════════════════════════════════
-// mc/mctx は init() 内で初期化（トップレベルの null クラッシュ防止）
 let mc, mctx;
 function initMapCanvas(){
-  mc   = document.getElementById('mapCanvas');
+  mc   = getEl('mapCanvas');
   mctx = mc ? mc.getContext('2d') : null;
 }
 function resizeMap(){
@@ -2465,10 +2284,9 @@ function resizeMap(){
   mc.height = 210;
   drawMap();
 }
-// ══ 主要都市座標 ══
+
 const BGCIT=[[35.6,139.7],[37.6,127],[22.3,114.2],[1.35,103.8],[13.8,100.5],[39.9,116.4],[28.6,77.2],[51.5,-0.1],[48.9,2.4],[52.5,13.4],[40.4,-3.7],[41.9,12.5],[55.8,37.6],[40.7,-74],[34.1,-118.2],[41.9,-87.6],[19.4,-99.1],[-23.5,-46.6],[-34.6,-58.4],[4.7,-74.1],[-12.0,-77.0],[-33.5,-70.6],[22.6,120.3],[14.6,121.0],[22.3,114.2],[27.9,-82.5],[31.8,-106.5],[36.1,-115.2],[40.8,-74.1],[39.3,-76.6],[32.7,-97.1]];
 
-// ══ 簡略大陸アウトライン（ライトテーマ版）══
 const CONTINENTS=[
   [[70,30],[60,50],[55,75],[30,80],[20,90],[5,100],[5,110],[10,120],[25,125],[40,135],[50,140],[60,130],[65,110],[70,80],[70,50],[70,30]],
   [[71,25],[65,15],[58,5],[45,0],[38,0],[35,12],[38,28],[42,35],[50,38],[58,40],[65,35],[70,28],[71,25]],
@@ -2479,7 +2297,7 @@ const CONTINENTS=[
 ];
 
 function drawContinent(pts,W,H){
-  if(pts.length<3)return;
+  if(!mctx || pts.length<3) return;
   mctx.beginPath();
   let first=true;
   for(const[la,lo]of pts){
@@ -2488,34 +2306,38 @@ function drawContinent(pts,W,H){
     else mctx.lineTo(x,y);
   }
   mctx.closePath();
-  mctx.fillStyle='rgba(180,170,230,.28)';   // 淡いラベンダー塗り
-  mctx.strokeStyle='rgba(120,100,200,.45)'; // パープル系アウトライン
+  mctx.fillStyle='rgba(180,170,230,.28)';
+  mctx.strokeStyle='rgba(120,100,200,.45)';
   mctx.lineWidth=0.8;
   mctx.fill();
   mctx.stroke();
 }
 
 function drawMap(){
-  if(!mc||!mctx)return;  // canvas not initialized
+  if(!mc||!mctx) return;
   const W=mc.width,H=mc.height;
-  if(W===0||H===0)return;  // サイズ0では描画しない
+  if(W===0||H===0) return;
   mctx.clearRect(0,0,W,H);
 
-  // ── 背景: 明るい海色 ──
   const bg=mctx.createLinearGradient(0,0,W,H);
-  bg.addColorStop(0,'#EEF2FF');  // 薄いラベンダーブルー
+  bg.addColorStop(0,'#EEF2FF');
   bg.addColorStop(1,'#E8ECF8');
   mctx.fillStyle=bg; mctx.fillRect(0,0,W,H);
 
-  // ── 緯線・経線（薄いグリッド）──
   mctx.strokeStyle='rgba(91,63,217,.10)'; mctx.lineWidth=.6;
-  for(let la=-60;la<=90;la+=30){mctx.beginPath();const[,y]=ll(la,0,W,H);mctx.moveTo(0,y);mctx.lineTo(W,y);mctx.stroke();}
-  for(let lo=-180;lo<=180;lo+=30){mctx.beginPath();const[x]=ll(0,lo,W,H);mctx.moveTo(x,0);mctx.lineTo(x,H);mctx.stroke();}
+  for(let la=-60;la<=90;la+=30){
+    mctx.beginPath();
+    const[,y]=ll(la,0,W,H);
+    mctx.moveTo(0,y);mctx.lineTo(W,y);mctx.stroke();
+  }
+  for(let lo=-180;lo<=180;lo+=30){
+    mctx.beginPath();
+    const[x]=ll(0,lo,W,H);
+    mctx.moveTo(x,0);mctx.lineTo(x,H);mctx.stroke();
+  }
 
-  // ── 大陸（薄いラベンダー塗り）──
   CONTINENTS.forEach(pts=>drawContinent(pts,W,H));
 
-  // ── 主要都市ドット ──
   BGCIT.forEach(([la,lo])=>{
     const[x,y]=ll(la,lo,W,H);
     if(x<0||x>W||y<0||y>H)return;
@@ -2523,7 +2345,6 @@ function drawMap(){
     mctx.beginPath();mctx.arc(x,y,1.4,0,Math.PI*2);mctx.fill();
   });
 
-  // ── ツアー全体の航路（薄い破線）──
   for(let i=0;i<TOUR.length-1;i++){
     const pts2=gc(TOUR[i].lat,TOUR[i].lng,TOUR[i+1].lat,TOUR[i+1].lng,60);
     const s2=[];let c2=[];
@@ -2536,7 +2357,6 @@ function drawMap(){
     });
   }
 
-  // ── アクティブ航路（パワー強化）──
   const pwr=getPower(),lw=1.4+(pwr/100)*2,glow=6+(pwr/100)*12;
   const pts=gc(routeFrom.lat,routeFrom.lng,routeTo.lat,routeTo.lng,120);
   const segs=[];let cur=[];
@@ -2549,13 +2369,12 @@ function drawMap(){
     mctx.setLineDash([]);mctx.shadowBlur=0;
   });
 
-  // ── 公演地ドット ──
   TOUR.forEach(v=>{
-    const[x,y]=ll(v.lat,v.lng,W,H);if(x<3||x>W-3||y<3||y>H-3)return;
+    const[x,y]=ll(v.lat,v.lng,W,H);
+    if(x<3||x>W-3||y<3||y>H-3)return;
     const isTgt=v===targetStop,wasSent=isSent(v);
     const isNext=v.status==='next';
     const col=isNext?'#5B3FD9':isTgt?activeMember.color:wasSent?'#16A34A':'rgba(91,63,217,.35)';
-    // 次回公演はリングアニメーション
     if(isNext||isTgt){
       mctx.beginPath();mctx.arc(x,y,7+Math.sin(Date.now()/600)*1.5,0,Math.PI*2);
       mctx.strokeStyle=col+'66';mctx.lineWidth=1.5;mctx.stroke();
@@ -2571,12 +2390,12 @@ function drawMap(){
     }
   });
 
-  // ── 飛行機アニメーション ──
   if(pts.length>1){
     const idx=Math.min(Math.floor(planeT*pts.length),pts.length-2);
     const[pLa,pLo]=pts[idx];const[px,py]=ll(pLa,pLo,W,H);
     if(px>=0&&px<=W&&py>=0&&py<=H){
-      const[nx,ny]=ll(pts[idx+1][0],pts[idx+1][1],W,H);const ang=Math.atan2(ny-py,nx-px);
+      const[nx,ny]=ll(pts[idx+1][0],pts[idx+1][1],W,H);
+      const ang=Math.atan2(ny-py,nx-px);
       mctx.save();mctx.translate(px,py);mctx.rotate(ang);
       mctx.shadowBlur=10;mctx.shadowColor=activeMember.color;mctx.fillStyle=activeMember.color;
       mctx.beginPath();mctx.moveTo(9,0);mctx.lineTo(-3,-5);mctx.lineTo(-1,0);mctx.lineTo(-3,5);mctx.closePath();mctx.fill();
@@ -2585,17 +2404,27 @@ function drawMap(){
   }
 }
 let lastMap=0;
-function loopMap(ts){if(!mc||!mctx){requestAnimationFrame(loopMap);return;}if(ts-lastMap>60){planeT+=.005*planeDir;if(planeT>=1){planeT=1;planeDir=-1;}if(planeT<=0){planeT=0;planeDir=1;}lastMap=ts;drawMap();}requestAnimationFrame(loopMap);}
+function loopMap(ts){
+  if(!mc||!mctx){requestAnimationFrame(loopMap);return;}
+  if(ts-lastMap>60){
+    planeT+=.005*planeDir;
+    if(planeT>=1){planeT=1;planeDir=-1;}
+    if(planeT<=0){planeT=0;planeDir=1;}
+    lastMap=ts;
+    drawMap();
+  }
+  requestAnimationFrame(loopMap);
+}
 
 function setRoute(from,to){
   routeFrom=from;routeTo=to;
   const d=Math.round(hav(from.lat,from.lng,to.lat,to.lng));
   const b=Math.round(brng(from.lat,from.lng,to.lat,to.lng));
-  document.getElementById('routeLabel').textContent=`${from.city.toUpperCase()} → ${to.city.toUpperCase()}`;
-  document.getElementById('mapDistVal').textContent=d.toLocaleString()+' km';
-  document.getElementById('cDist').textContent=d.toLocaleString()+' km';
-  document.getElementById('cDeg').textContent=b+'°';
-  document.getElementById('cDir').textContent=blbl(b);
+  setText('routeLabel', `${from.city.toUpperCase()} → ${to.city.toUpperCase()}`);
+  setText('mapDistVal', d.toLocaleString()+' km');
+  setText('cDist', d.toLocaleString()+' km');
+  setText('cDeg', b+'°');
+  setText('cDir', blbl(b));
   rotateNeedle(b-devHeading);
 }
 
@@ -2603,95 +2432,119 @@ function setRoute(from,to){
 // GEOLOCATION → COMPASS
 // ════════════════════════════════════════════════
 const GEO_KEY='bts_lr_geo';
-try{const g=JSON.parse(localStorage.getItem(GEO_KEY)||'null');if(g){userLat=g.lat;userLng=g.lng;geoGranted=true;}}catch(e){}
+try{
+  const g=JSON.parse(localStorage.getItem(GEO_KEY)||'null');
+  if(g){userLat=g.lat;userLng=g.lng;geoGranted=true;}
+} catch(e){}
 
 function updateCompassFromUser(){
   if(!userLat||!geoGranted)return;
   const v=targetStop;
   const d=Math.round(hav(userLat,userLng,v.lat,v.lng));
   const b=Math.round(brng(userLat,userLng,v.lat,v.lng));
-  document.getElementById('cDeg').textContent=b+'°';
-  document.getElementById('cDir').textContent=blbl(b);
-  document.getElementById('cDist').textContent=d.toLocaleString()+' km';
+  setText('cDeg', b+'°');
+  setText('cDir', blbl(b));
+  setText('cDist', d.toLocaleString()+' km');
   rotateNeedle(b-devHeading);
-  document.getElementById('compassFromLabel').textContent=lang==='jp'?`📍 あなた → ${v.city} (${v.venue})`:`📍 You → ${v.city} (${v.venue})`;
-  document.getElementById('compassFromLabel').style.color='var(--dim2)';
+  const lbl=getEl('compassFromLabel');
+  if(lbl){
+    lbl.textContent=lang==='jp'?`📍 あなた → ${v.city} (${v.venue})`:`📍 You → ${v.city} (${v.venue})`;
+    lbl.style.color='var(--dim2)';
+  }
   setRoute({lat:userLat,lng:userLng,city:'You',country:''},v);
 }
 function requestGeo(){
-  if(!navigator.geolocation){const l=document.getElementById('compassFromLabel');l.textContent=lang==='jp'?'位置情報非対応':'Not supported';return;}
-  const l=document.getElementById('compassFromLabel');l.textContent=lang==='jp'?'位置情報を取得中…':'Locating…';
+  if(!navigator.geolocation){
+    const l=getEl('compassFromLabel');
+    if(l) l.textContent=lang==='jp'?'位置情報非対応':'Not supported';
+    return;
+  }
+  const l=getEl('compassFromLabel');
+  if(l) l.textContent=lang==='jp'?'位置情報を取得中…':'Locating…';
   navigator.geolocation.getCurrentPosition(pos=>{
     userLat=pos.coords.latitude;userLng=pos.coords.longitude;geoGranted=true;
     localStorage.setItem(GEO_KEY,JSON.stringify({lat:userLat,lng:userLng}));
     updateCompassFromUser();
-    document.getElementById('geoBtn').style.borderColor='var(--green)';
-    document.getElementById('geoBtn').style.color='var(--green)';
+    const geoBtn = getEl('geoBtn');
+    if(geoBtn){
+      geoBtn.style.borderColor='var(--green)';
+      geoBtn.style.color='var(--green)';
+    }
   },()=>{
     geoGranted=false;
     const fi=TOUR.findIndex(x=>x===targetStop);
-    l.textContent=lang==='jp'?`${routeFrom.city} → ${targetStop.city} (都市間)`:`${routeFrom.city} → ${targetStop.city} (city-to-city)`;
+    if(l) l.textContent=lang==='jp'?`${routeFrom.city} → ${targetStop.city} (都市間)`:`${routeFrom.city} → ${targetStop.city} (city-to-city)`;
     setRoute(routeFrom,targetStop);
   },{timeout:8000,maximumAge:300000});
 }
 function initCompass(){
-  const ticks=document.getElementById('cTicks');
-  for(let i=0;i<72;i++){
-    const a=i*5,maj=i%9===0,mid=i%3===0,r1=maj?36:mid?38:40,r2=44,rad=toR(a-90);
-    const line=document.createElementNS('http://www.w3.org/2000/svg','line');
-    line.setAttribute('x1',50+r1*Math.cos(rad));line.setAttribute('y1',50+r1*Math.sin(rad));
-    line.setAttribute('x2',50+r2*Math.cos(rad));line.setAttribute('y2',50+r2*Math.sin(rad));
-    line.setAttribute('stroke',maj?'rgba(91,63,217,.5)':mid?'rgba(91,63,217,.2)':'rgba(91,63,217,.08)');
-    line.setAttribute('stroke-width',maj?1.5:.8);ticks.appendChild(line);
+  const ticks=getEl('cTicks');
+  if(ticks){
+    for(let i=0;i<72;i++){
+      const a=i*5,maj=i%9===0,mid=i%3===0,r1=maj?36:mid?38:40,r2=44,rad=toR(a-90);
+      const line=document.createElementNS('http://www.w3.org/2000/svg','line');
+      line.setAttribute('x1',50+r1*Math.cos(rad));line.setAttribute('y1',50+r1*Math.sin(rad));
+      line.setAttribute('x2',50+r2*Math.cos(rad));line.setAttribute('y2',50+r2*Math.sin(rad));
+      line.setAttribute('stroke',maj?'rgba(91,63,217,.5)':mid?'rgba(91,63,217,.2)':'rgba(91,63,217,.08)');
+      line.setAttribute('stroke-width',maj?1.5:.8);ticks.appendChild(line);
+    }
   }
-  document.getElementById('geoBtn').addEventListener('click',requestGeo);
-  if(geoGranted&&userLat){updateCompassFromUser();document.getElementById('geoBtn').style.borderColor='var(--green)';document.getElementById('geoBtn').style.color='var(--green)';}
-  else{const b=Math.round(brng(TOUR[0].lat,TOUR[0].lng,TOUR[1].lat,TOUR[1].lng));rotateNeedle(b);document.getElementById('cDeg').textContent=b+'°';document.getElementById('cDir').textContent=blbl(b);document.getElementById('cDist').textContent=Math.round(hav(TOUR[0].lat,TOUR[0].lng,TOUR[1].lat,TOUR[1].lng)).toLocaleString()+' km';const l=document.getElementById('compassFromLabel');l.textContent=lang==='jp'?`${TOUR[0].city} → ${TOUR[1].city} (📍タップで現在地から)`:`${TOUR[0].city} → ${TOUR[1].city} (tap 📍 for your location)`;}
-  if('DeviceOrientationEvent'in window){window.addEventListener('deviceorientationabsolute',onOrient,true);window.addEventListener('deviceorientation',onOrient,true);}
+  const geoBtn = getEl('geoBtn');
+  if(geoBtn) geoBtn.addEventListener('click',requestGeo);
+  
+  if(geoGranted&&userLat){
+    updateCompassFromUser();
+    if(geoBtn){
+      geoBtn.style.borderColor='var(--green)';
+      geoBtn.style.color='var(--green)';
+    }
+  } else {
+    const b=Math.round(brng(TOUR[0].lat,TOUR[0].lng,TOUR[1].lat,TOUR[1].lng));
+    rotateNeedle(b);
+    setText('cDeg', b+'°');
+    setText('cDir', blbl(b));
+    setText('cDist', Math.round(hav(TOUR[0].lat,TOUR[0].lng,TOUR[1].lat,TOUR[1].lng)).toLocaleString()+' km');
+    const lbl=getEl('compassFromLabel');
+    if(lbl) lbl.textContent=lang==='jp'?`${TOUR[0].city} → ${TOUR[1].city} (📍タップで現在地から)`:`${TOUR[0].city} → ${TOUR[1].city} (tap 📍 for your location)`;
+  }
+  
+  if('DeviceOrientationEvent'in window){
+    window.addEventListener('deviceorientationabsolute',onOrient,true);
+    window.addEventListener('deviceorientation',onOrient,true);
+  }
 }
-function onOrient(e) {
-  const h = e.webkitCompassHeading ?? (e.absolute ? -e.alpha : null);
-  if (h !== null) {
-    devHeading = h;
-    // rotateNeedle を呼び出す際、計算結果を渡す
-    rotateNeedle(brng(routeFrom.lat, routeFrom.lng, routeTo.lat, routeTo.lng) - devHeading);
+function onOrient(e){
+  const h=e.webkitCompassHeading??(e.absolute?-e.alpha:null);
+  if(h!==null){
+    devHeading=h;
+    rotateNeedle(brng(routeFrom.lat,routeFrom.lng,routeTo.lat,routeTo.lng)-devHeading);
   }
+}
+function rotateNeedle(a){
+  const needle = getEl('needle');
+  if(!needle) return;
+  needle.style.transition='transform .7s cubic-bezier(.4,0,.2,1)';
+  needle.setAttribute('transform',`rotate(${a},50,50)`);
 }
 
-function rotateNeedle(a) {
-  const needle = document.getElementById('needle');
-  // 🛡️ セキュリティと安定性のためのガード：要素が存在する場合のみ実行
-  if (needle) {
-    needle.style.transition = 'transform .7s cubic-bezier(.4, 0, .2, 1)';
-    // SVGのtransform属性またはCSSのtransformを操作
-    needle.setAttribute('transform', `rotate(${a},50,50)`);
-    // もしCSSで制御している場合は以下も併記するとより確実です
-    // needle.style.transform = `rotate(${a}deg)`;
-  }
-}
 // ════════════════════════════════════════════════
 // ENERGY RING
 // ════════════════════════════════════════════════
-// ec は init() 内で初期化
 let ec;
 function initEnergyCanvas(){
-  const ecEl = document.getElementById('energyCanvas');
+  const ecEl = getEl('energyCanvas');
   ec = ecEl ? ecEl.getContext('2d') : null;
 }
 function drawEnergy(){
-  if(!ec) return;  // energyCanvas not ready
+  if(!ec) return;
   const cx=46,cy=46,r=33,W=92,H=92;
   ec.clearRect(0,0,W,H);
-  // 背景円（ライトテーマ: 薄いラベンダー）
   ec.fillStyle='rgba(237,233,255,.9)';ec.beginPath();ec.arc(cx,cy,r+9,0,Math.PI*2);ec.fill();
-  // トラック
   ec.beginPath();ec.arc(cx,cy,r,0,Math.PI*2);ec.strokeStyle='rgba(91,63,217,.18)';ec.lineWidth=7;ec.stroke();
   const p=Math.min(energyCount/120000,1),s=-Math.PI/2;
-  // アクティブアーク
   ec.beginPath();ec.arc(cx,cy,r,s,s+p*Math.PI*2);
   ec.shadowBlur=10;ec.shadowColor=activeMember.color;
   ec.strokeStyle=activeMember.color;ec.lineWidth=7;ec.lineCap='round';ec.stroke();ec.shadowBlur=0;
-  // エンドドット
   const ex=cx+r*Math.cos(s+p*Math.PI*2),ey=cy+r*Math.sin(s+p*Math.PI*2);
   ec.beginPath();ec.arc(ex,ey,4,0,Math.PI*2);
   ec.fillStyle=activeMember.color;ec.shadowBlur=8;ec.shadowColor=activeMember.color;ec.fill();ec.shadowBlur=0;
@@ -2701,9 +2554,8 @@ function drawEnergy(){
 // MEMBER SELECTOR (Zone 4)
 // ════════════════════════════════════════════════
 function initMemberSel(){
-  // Zone04: #memberBtns コンテナにメンバーボタンを生成
-  const wrap = document.getElementById('memberBtns');
-  if(!wrap){ console.warn('memberBtns not found'); return; }
+  const wrap = getEl('memberBtns');
+  if(!wrap) return;
   wrap.innerHTML = '';
   MEMBERS.forEach(m=>{
     const btn = document.createElement('button');
@@ -2712,12 +2564,14 @@ function initMemberSel(){
     btn.style.setProperty('--mr', m.rgb);
     btn.innerHTML = `<div class="mbtn-dot"></div><div class="mbtn-name">${m.jp||m.name}</div>`;
     btn.addEventListener('click',()=>{
-      if(isSent(targetStop)){ return; }  // 送信済みなら無効
+      if(isSent(targetStop)) return;
       activeMember = m;
-      document.querySelectorAll('.mbtn').forEach(b=>b.classList.remove('sel'));
+      document.querySelectorAll('.mbtn').forEach(b=>{
+        if(b) b.classList.remove('sel');
+      });
       btn.classList.add('sel');
       applyTheme(m);
-      evaluateSendState();  // メンバー選択後に送信ボタン状態更新
+      evaluateSendState();
     });
     wrap.appendChild(btn);
   });
@@ -2725,22 +2579,27 @@ function initMemberSel(){
 function applyTheme(m){
   document.documentElement.style.setProperty('--active',m.color);
   document.documentElement.style.setProperty('--active-rgb',m.rgb);
-  document.getElementById('cDeg').style.color=m.color;
-  if(document.getElementById('eCount')) document.getElementById('eCount').style.color=m.color || 'var(--purple)';
-  document.getElementById('showtimeCnt').style.color=m.color;
-  document.getElementById('sbPower').style.color=m.color;
-  drawEnergy();updateSendStyle();
+  const cDeg = getEl('cDeg');
+  const showtimeCnt = getEl('showtimeCnt');
+  const sbPower = getEl('sbPower');
+  
+  if(cDeg) cDeg.style.color=m.color;
+  if(showtimeCnt) showtimeCnt.style.color=m.color;
+  if(sbPower) sbPower.style.color=m.color;
+  
+  drawEnergy();
+  updateSendStyle();
 }
 
 // ════════════════════════════════════════════════
 // DAILY MEMBER CHECKIN GRID (Zone 5)
 // ════════════════════════════════════════════════
 function initDailyGrid(){
-  const grid = document.getElementById('dailyMembersGrid');
+  const grid = getEl('dailyMembersGrid');
+  if(!grid) return;
   grid.innerHTML = '';
-
   const todaySelected = dailyData.members[0] || null;
-
+  
   MEMBERS.forEach(m => {
     const btn = document.createElement('button');
     btn.id  = 'dmb_' + m.id;
@@ -2778,7 +2637,7 @@ function refreshDailyUI(){
   const selectedMember = todaySelected ? MEMBERS.find(m=>m.id===todaySelected) : null;
 
   MEMBERS.forEach(m => {
-    const btn = document.getElementById('dmb_' + m.id);
+    const btn = getEl('dmb_' + m.id);
     if(!btn) return;
     const isSelected = (m.id === todaySelected);
     const isLocked   = todaySelected !== null && !isSelected;
@@ -2788,8 +2647,7 @@ function refreshDailyUI(){
     btn.style.cursor  = (todaySelected !== null) ? 'not-allowed' : 'pointer';
   });
 
-  // 今日の選択カウント表示
-  const countEl = document.getElementById('dailyCount');
+  const countEl = getEl('dailyCount');
   if(countEl){
     if(todaySelected && selectedMember){
       countEl.textContent = lang==='jp'
@@ -2804,8 +2662,7 @@ function refreshDailyUI(){
     }
   }
 
-  // 選択インジケーターバー: 選択済み=メンバーカラー100%, 未選択=0%
-  const rfill = document.getElementById('rainbowFill');
+  const rfill = getEl('rainbowFill');
   if(rfill){
     if(todaySelected && selectedMember){
       rfill.style.width = '100%';
@@ -2817,13 +2674,11 @@ function refreshDailyUI(){
     }
   }
 
-  // 累計チェックイン数
-  const rcEl = document.getElementById('rainbowCountEl');
+  const rcEl = getEl('rainbowCountEl');
   if(rcEl) rcEl.textContent = dailyData.rainbowCount||0;
 
-  // 称号ラベル
   const rc = dailyData.rainbowCount||0;
-  const rtEl = document.getElementById('rainbowTitle');
+  const rtEl = getEl('rainbowTitle');
   if(rtEl){
     if(rc>=7)      rtEl.textContent = lang==='jp'?'🌈✨ 虹の伝説':'🌈✨ RAINBOW LEGEND';
     else if(rc>=3) rtEl.textContent = lang==='jp'?'🌈🌈 虹の戦士':'🌈🌈 RAINBOW WARRIOR';
@@ -2832,23 +2687,19 @@ function refreshDailyUI(){
   }
 }
 
-// ════════════════════════════════════════════════════════════════
-// WEB AUDIO — 観客の歓声SE（Web Audio APIで合成）
-// 外部ファイル不要、ブラウザ内で生成
-// ════════════════════════════════════════════════════════════════
+// ════════════════════════════════════════════════
+// AUDIO EFFECTS
+// ════════════════════════════════════════════════
 let _audioCtx = null;
 function getAudioCtx(){
   if(!_audioCtx) _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
   return _audioCtx;
 }
 
-// 「わぁー」という観客の歓声を合成
 function playCrowdCheer(duration=4.0, volume=0.18){
   try {
     const ctx = getAudioCtx();
     const out = ctx.destination;
-
-    // ── ホワイトノイズベース（ざわめき）──
     const bufLen = ctx.sampleRate * duration;
     const buf    = ctx.createBuffer(2, bufLen, ctx.sampleRate);
     for(let ch=0; ch<2; ch++){
@@ -2857,37 +2708,27 @@ function playCrowdCheer(duration=4.0, volume=0.18){
     }
     const noise = ctx.createBufferSource();
     noise.buffer = buf;
-
-    // ── バンドパスフィルタ（声帯域: 400-3000Hz）──
     const bp = ctx.createBiquadFilter();
     bp.type      = 'bandpass';
     bp.frequency.value = 1200;
     bp.Q.value   = 0.8;
-
-    // ── ローパスフィルタ（高周波をカット）──
     const lp = ctx.createBiquadFilter();
     lp.type      = 'lowpass';
     lp.frequency.setValueAtTime(3000, ctx.currentTime);
     lp.frequency.linearRampToValueAtTime(1800, ctx.currentTime + duration*0.7);
-
-    // ── ゲイン（フェードイン → フェードアウト）──
     const gain = ctx.createGain();
     gain.gain.setValueAtTime(0, ctx.currentTime);
     gain.gain.linearRampToValueAtTime(volume, ctx.currentTime + 0.5);
     gain.gain.setValueAtTime(volume, ctx.currentTime + duration*0.6);
     gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
-
-    // ── 興奮感の「うねり」: LFOで揺らす ──
     const lfo = ctx.createOscillator();
-    lfo.frequency.value = 0.8; // 0.8Hz のゆっくりしたうねり
+    lfo.frequency.value = 0.8;
     const lfoGain = ctx.createGain();
     lfoGain.gain.value = 0.3;
     lfo.connect(lfoGain);
     lfoGain.connect(gain.gain);
     lfo.start();
     lfo.stop(ctx.currentTime + duration);
-
-    // ── ルーティング ──
     noise.connect(bp);
     bp.connect(lp);
     lp.connect(gain);
@@ -2899,35 +2740,27 @@ function playCrowdCheer(duration=4.0, volume=0.18){
   }
 }
 
-// 短い「バシュッ」という送出音
-function playSendWhoosh(color){ // color 引数は未使用（将来の音色変化用）
+function playSendWhoosh(color){
   try {
     const ctx = getAudioCtx();
     const dur = 0.9;
-
-    // ── スウィープノイズ ──
     const bufLen = ctx.sampleRate * dur;
     const buf    = ctx.createBuffer(1, bufLen, ctx.sampleRate);
     const d = buf.getChannelData(0);
     for(let i=0; i<bufLen; i++) d[i] = (Math.random()*2-1);
     const noise = ctx.createBufferSource(); noise.buffer = buf;
-
-    // ── ハイパスフィルタ（高音のシュー）──
     const hp = ctx.createBiquadFilter();
     hp.type = 'highpass';
     hp.frequency.setValueAtTime(4000, ctx.currentTime);
     hp.frequency.exponentialRampToValueAtTime(8000, ctx.currentTime + dur*0.6);
-
     const gain = ctx.createGain();
     gain.gain.setValueAtTime(0.22, ctx.currentTime);
     gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + dur);
-
     noise.connect(hp); hp.connect(gain); gain.connect(ctx.destination);
     noise.start(); noise.stop(ctx.currentTime + dur);
   } catch(e){}
 }
 
-// チャージ時の「ポン」という音
 function playChargeSound(){
   try {
     const ctx = getAudioCtx();
@@ -2944,48 +2777,50 @@ function playChargeSound(){
   } catch(e){}
 }
 
-// ════════════════════════════════════════════════════════════════
-// CHARGE EFFECT — 毎日チャージエフェクト（公演がない日）
-// ════════════════════════════════════════════════════════════════
+// ════════════════════════════════════════════════
+// CHARGE EFFECT
+// ════════════════════════════════════════════════
 function showChargeEffect(member){
-  const ov  = document.getElementById('chargeOverlay');
-  const canvas = document.getElementById('chargeCanvas');
+  const ov  = getEl('chargeOverlay');
+  const canvas = getEl('chargeCanvas');
+  if(!ov) return;
 
-  // メンバーカラーを CSS 変数でオーバーレイに適用
   ov.style.setProperty('--charge-color', member.color);
   ov.style.setProperty('--charge-bg', `rgba(${member.rgb},.08)`);
 
-  // emoji は메인 파워 심볼
-  document.getElementById('chargeEmoji').style.color = member.color;
-  document.getElementById('chargeEmoji').style.textShadow = `0 0 30px ${member.color}`;
+  const chargeEmoji = getEl('chargeEmoji');
+  if(chargeEmoji){
+    chargeEmoji.style.color = member.color;
+    chargeEmoji.style.textShadow = `0 0 30px ${member.color}`;
+  }
 
-  // メンバー名
-  document.getElementById('chargeMember').textContent = lang==='jp' ? (member.jp||member.name) : member.name;
-  document.getElementById('chargeMember').style.color = member.color;
+  const chargeMember = getEl('chargeMember');
+  if(chargeMember){
+    chargeMember.textContent = lang==='jp' ? (member.jp||member.name) : member.name;
+    chargeMember.style.color = member.color;
+  }
 
-  // メッセージ
-  document.getElementById('chargeMsgJP').textContent = `${member.jp||member.name}の光をチャージしました`;
-  document.getElementById('chargeMsgEN').textContent = `${member.name} LIGHT CHARGED`;
+  const chargeMsgJP = getEl('chargeMsgJP');
+  const chargeMsgEN = getEl('chargeMsgEN');
+  if(chargeMsgJP) chargeMsgJP.textContent = `${member.jp||member.name}の光をチャージしました`;
+  if(chargeMsgEN) chargeMsgEN.textContent = `${member.name} LIGHT CHARGED`;
 
   ov.classList.add('on');
-
-  // パーティクル描画
   drawChargeParticles(canvas, member.color);
   playChargeSound();
 
-  // 3秒後に自動閉じ
   setTimeout(()=>{
     ov.classList.remove('on');
   }, 3000);
 }
 
 function drawChargeParticles(canvas, color){
+  if(!canvas) return;
   const W = window.innerWidth, H = window.innerHeight;
   canvas.width = W; canvas.height = H;
   const ctx = canvas.getContext('2d');
   const cx = W/2, cy = H/2;
 
-  // パーティクル定義
   const particles = Array.from({length:40}, (_,i)=>{
     const angle = (i/40)*Math.PI*2;
     const speed = 2 + Math.random()*3;
@@ -3020,23 +2855,25 @@ function drawChargeParticles(canvas, color){
   setTimeout(()=>{ cancelAnimationFrame(raf); ctx.clearRect(0,0,W,H); },3000);
 }
 
-// ════════════════════════════════════════════════════════════════
-// SEND EFFECT — 送出エフェクト（派手）
-// ════════════════════════════════════════════════════════════════
+// ════════════════════════════════════════════════
+// SEND EFFECT
+// ════════════════════════════════════════════════
 function showSendEffect(member, venueName, dist){
-  const ov     = document.getElementById('sendOverlay');
-  const canvas = document.getElementById('sendCanvas');
+  const ov     = getEl('sendOverlay');
+  const canvas = getEl('sendCanvas');
+  if(!ov) return;
+  
   const W = window.innerWidth, H = window.innerHeight;
-  canvas.width=W; canvas.height=H;
+  if(canvas){
+    canvas.width=W; canvas.height=H;
+  }
 
-  // カラー適用
   ov.style.setProperty('--send-color', member.color);
-  const bgR = parseInt(member.rgb.split(',')[0]);
-  const bgG = parseInt(member.rgb.split(',')[1]);
-  const bgB = parseInt(member.rgb.split(',')[2]);
-  ov.style.setProperty('--send-bg', `rgba(${Math.max(0,bgR-180)},${Math.max(0,bgG-180)},${Math.max(0,bgB-60)},.97)`);
+  const rgb = member.rgb.split(',').map(x=>parseInt(x));
+  ov.style.setProperty('--send-bg', `rgba(${Math.max(0,rgb[0]-180)},${Math.max(0,rgb[1]-180)},${Math.max(0,rgb[2]-60)},.97)`);
 
-  document.getElementById('sendOrb').style.filter = `drop-shadow(0 0 40px ${member.color})`;
+  const sendOrb = getEl('sendOrb');
+  if(sendOrb) sendOrb.style.filter = `drop-shadow(0 0 40px ${member.color})`;
 
   playSendWhoosh(member.color);
   drawSendParticles(canvas, member.color);
@@ -3044,11 +2881,11 @@ function showSendEffect(member, venueName, dist){
 }
 
 function drawSendParticles(canvas, color){
+  if(!canvas) return;
   const W=canvas.width, H=canvas.height;
   const ctx=canvas.getContext('2d');
   const cx=W/2, cy=H*0.42;
 
-  // 光線のストリーク（放射状）
   const streaks = Array.from({length:60},(_,i)=>{
     const angle=(i/60)*Math.PI*2;
     return {
@@ -3057,7 +2894,6 @@ function drawSendParticles(canvas, color){
     };
   });
 
-  // 火花パーティクル
   const sparks = Array.from({length:80},(_,i)=>{
     const a=(i/80)*Math.PI*2;
     const spd=1+Math.random()*5;
@@ -3069,14 +2905,12 @@ function drawSendParticles(canvas, color){
     ctx.clearRect(0,0,W,H);
     frame++;
 
-    // 中心グロー
     const glowR = Math.min(200, frame*3);
     const grd = ctx.createRadialGradient(cx,cy,0,cx,cy,glowR);
     grd.addColorStop(0,color+'88');
     grd.addColorStop(1,'transparent');
     ctx.fillStyle=grd; ctx.fillRect(0,0,W,H);
 
-    // 光線
     streaks.forEach(s=>{
       if(frame < s.delay) return;
       s.len = Math.min(s.maxLen, s.len+s.speed);
@@ -3092,7 +2926,6 @@ function drawSendParticles(canvas, color){
       ctx.stroke();
     });
 
-    // 火花
     sparks.forEach(p=>{
       if(p.life<=0) return;
       p.x+=p.vx; p.y+=p.vy; p.vy+=0.06; p.life-=p.decay;
@@ -3108,9 +2941,9 @@ function drawSendParticles(canvas, color){
   draw();
 }
 
-// ════════════════════════════════════════════════════════════════
-// COUNTDOWN OVERLAY — 開演1時間前カウントダウン
-// ════════════════════════════════════════════════════════════════
+// ════════════════════════════════════════════════
+// COUNTDOWN OVERLAY
+// ════════════════════════════════════════════════
 let countdownTimer = null;
 let countdownShownKey = new Set();
 try{ JSON.parse(localStorage.getItem('fhts_cdshown')||'[]').forEach(k=>countdownShownKey.add(k)); } catch(e){}
@@ -3119,7 +2952,6 @@ function tryShowCountdown(){
   if(!targetStop || !targetStop.st) return;
   const sk = showKey(targetStop);
   const diff = new Date(targetStop.st) - new Date();
-  // 開演1時間前〜0分の間、かつ未表示
   if(diff > 0 && diff <= 3600000 && !countdownShownKey.has(sk)){
     countdownShownKey.add(sk);
     localStorage.setItem('fhts_cdshown', JSON.stringify([...countdownShownKey]));
@@ -3128,42 +2960,43 @@ function tryShowCountdown(){
 }
 
 function openCountdownOverlay(stop, isDemo=false){
-  const ov = document.getElementById('countdownOverlay');
-  const canvas = document.getElementById('countdownBg');
+  const ov = getEl('countdownOverlay');
+  const canvas = getEl('countdownBg');
+  if(!ov) return;
 
-  // メンバーカラー（送信済みメンバーがあればそのカラー、なければアクティブ）
   const sm = sentMem(stop);
   const col = sm ? sm.color : activeMember.color;
   ov.style.setProperty('--cd-color', col);
 
-  // 会場ラベル
   const venueLine = stop.venue && stop.venue !== 'TBA' ? `${stop.city} · ${stop.venue}` : stop.city;
-  document.getElementById('cdVenue').textContent   = venueLine;
-  document.getElementById('cdVenueEN').textContent = venueLine;
+  const cdVenue = getEl('cdVenue');
+  const cdVenueEN = getEl('cdVenueEN');
+  if(cdVenue) cdVenue.textContent = venueLine;
+  if(cdVenueEN) cdVenueEN.textContent = venueLine;
 
-  // 点滅ドット（メンバーカラー）
-  const row = document.getElementById('cdPulseRow');
-  row.innerHTML = '';
-  for(let i=0;i<3;i++){
-    const d=document.createElement('div');
-    d.className='cd-dot';
-    d.style.background=col;
-    row.appendChild(d);
+  const row = getEl('cdPulseRow');
+  if(row){
+    row.innerHTML = '';
+    for(let i=0;i<3;i++){
+      const d=document.createElement('div');
+      d.className='cd-dot';
+      d.style.background=col;
+      row.appendChild(d);
+    }
   }
 
   ov.classList.add('on');
   drawCountdownBg(canvas, col);
   playCrowdCheer(5.0, 0.18);
 
-  // タイマー更新（1秒ごと）
   clearInterval(countdownTimer);
   function updateTimer(){
     const rem = new Date(stop.st) - new Date();
+    const cdTimer = getEl('cdTimer');
     if(rem <= 0){
-      document.getElementById('cdTimer').textContent = '00:00:00';
+      if(cdTimer) cdTimer.textContent = '00:00:00';
       clearInterval(countdownTimer);
       if(!isDemo) {
-        // 開演！カウントダウン終了後に閉じる
         setTimeout(()=> ov.classList.remove('on'), 3000);
       }
       return;
@@ -3171,28 +3004,28 @@ function openCountdownOverlay(stop, isDemo=false){
     const h=Math.floor(rem/3600000);
     const m=Math.floor((rem%3600000)/60000);
     const s=Math.floor((rem%60000)/1000);
-    document.getElementById('cdTimer').textContent =
+    if(cdTimer) cdTimer.textContent =
       `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
   }
   updateTimer();
   countdownTimer = setInterval(updateTimer, 1000);
 
-  // 閉じるボタン
-  const closeBtn = document.getElementById('cdClose');
-  const closeHandler = ()=>{
-    ov.classList.remove('on');
-    clearInterval(countdownTimer);
-    closeBtn.removeEventListener('click', closeHandler);
-  };
-  closeBtn.addEventListener('click', closeHandler);
+  const closeBtn = getEl('cdClose');
+  if(closeBtn){
+    const closeHandler = ()=>{
+      ov.classList.remove('on');
+      clearInterval(countdownTimer);
+      closeBtn.removeEventListener('click', closeHandler);
+    };
+    closeBtn.addEventListener('click', closeHandler);
+  }
 }
 
 function drawCountdownBg(canvas, col){
+  if(!canvas) return;
   const W=window.innerWidth, H=window.innerHeight;
   canvas.width=W; canvas.height=H;
   const ctx=canvas.getContext('2d');
-
-  // 深いグラデーション背景
   const r=parseInt(col.slice(1,3)||'5b',16);
   const g=parseInt(col.slice(3,5)||'3f',16);
   const b=parseInt(col.slice(5,7)||'d9',16);
@@ -3202,14 +3035,12 @@ function drawCountdownBg(canvas, col){
   grd.addColorStop(1,'rgba(9,12,19,.98)');
   ctx.fillStyle=grd; ctx.fillRect(0,0,W,H);
 
-  // 星粒
   ctx.fillStyle='rgba(255,255,255,.6)';
   for(let i=0;i<80;i++){
     const x=Math.random()*W, y=Math.random()*H, r=Math.random()*1.5;
     ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.fill();
   }
 
-  // 同心リング
   for(let i=1;i<=4;i++){
     const rad=i*80;
     ctx.strokeStyle=`rgba(255,255,255,${0.04/i})`;
@@ -3218,9 +3049,9 @@ function drawCountdownBg(canvas, col){
   }
 }
 
-// arrival canvasアニメーション
 function drawArrivalBg(color){
-  const canvas=document.getElementById('arrivalCanvas');
+  const canvas=getEl('arrivalCanvas');
+  if(!canvas) return;
   const W=window.innerWidth, H=window.innerHeight;
   canvas.width=W; canvas.height=H;
   const ctx=canvas.getContext('2d');
@@ -3231,7 +3062,6 @@ function drawArrivalBg(color){
   grd.addColorStop(0,`rgba(${r},${g},${b},.6)`);
   grd.addColorStop(1,'rgba(9,12,19,.98)');
   ctx.fillStyle=grd; ctx.fillRect(0,0,W,H);
-  // 輝く星
   for(let i=0;i<60;i++){
     const x=Math.random()*W,y=Math.random()*H,sz=Math.random()*2;
     ctx.fillStyle=`rgba(255,255,255,${Math.random()*.7+.3})`;
@@ -3240,89 +3070,8 @@ function drawArrivalBg(color){
 }
 
 function closeArrival(){
-  document.getElementById('showtimeOverlay').classList.remove('on');
-}
-
-// ════════════════════════════════════════════════
-// RAINBOW ANIMATION
-// ════════════════════════════════════════════════
-function triggerRainbow(){
-  const ov=document.getElementById('rainbowOverlay');
-  const rc=dailyData.rainbowCount||0;
-  document.getElementById('rbTitle').textContent=lang==='jp'?'虹の光 達成！':'RAINBOW LIGHT!';
-  document.getElementById('rbSub').textContent=lang==='jp'?'7人全員に光を届けました':'You sent light to all 7 members';
-  const title=rc>=7?'🌈✨ 虹の伝説':rc>=3?'🌈🌈 虹の戦士':rc>=1?'🌈 虹の夢':'';
-  document.getElementById('rbCount').textContent=lang==='jp'?`累計${rc}回達成`:`Total: ${rc} rainbow${rc>1?'s':''}`;
-  ov.classList.add('on');
-  setTimeout(()=>ov.classList.remove('on'),6000);
-}
-
-// ════════════════════════════════════════════════
-// STARS CONSTELLATION CANVAS (Zone 6)
-// ════════════════════════════════════════════════
-function renderStarsCanvas(){
-  const canvas=document.getElementById('starsCanvas');
-  if(!canvas) return;  // starsCanvas removed from Zone06
-  const W=canvas.parentElement.clientWidth-32||326;
-  canvas.width=W;canvas.height=160;
-  const ctx=canvas.getContext('2d');
-  ctx.clearRect(0,0,W,160);
-  // Background
-  ctx.fillStyle='#EEF0FF';ctx.fillRect(0,0,W,160);
-  // Background micro-stars
-  for(let i=0;i<60;i++){ctx.fillStyle=`rgba(91,63,217,${(Math.random()*.12+.03).toFixed(2)})`;  ctx.beginPath();ctx.arc(Math.random()*W,Math.random()*160,Math.random()*.9,0,Math.PI*2);ctx.fill();}
-
-  const sentEntries=Object.entries(sentShows);
-  const total=sentEntries.length;
-  if(document.getElementById('starCountLabel')) document.getElementById('starCountLabel').textContent=total+' / 100';
-
-  if(total===0){
-    ctx.fillStyle='rgba(91,63,217,.55)';ctx.font='12px Noto Sans JP,sans-serif';
-    ctx.textAlign='center';ctx.fillText(lang==='jp'?'光を送ると星が生まれます':'Send a light to create stars',W/2,82);
-    ctx.textAlign='left';return;
-  }
-
-  // Star positions: deterministic grid with sine/cosine offsets
-  const COLS=10,ROWS=10;
-  const cw=W/COLS,ch=140/ROWS;
-  sentEntries.forEach(([key,val],idx)=>{
-    const mid=typeof val==='object'?val.m:val;
-    const pwr=typeof val==='object'?val.p:50;
-    const m=MEMBERS.find(x=>x.id===mid)||MEMBERS[4];
-    const col=idx%COLS,row=Math.floor(idx/COLS);
-    // Deterministic jitter based on index
-    const jx=Math.sin(idx*1.618)*cw*0.35;
-    const jy=Math.cos(idx*2.718)*ch*0.35;
-    const x=cw*col+cw/2+jx+cw*0.1;
-    const y=ch*row+ch/2+jy+14;
-    const sz=2+(pwr/100)*3.5; // 2–5.5px
-    const glow=4+(pwr/100)*10;
-    // Glow
-    ctx.shadowBlur=glow;ctx.shadowColor=m.color;
-    // Star shape (5-point)
-    ctx.fillStyle=m.color;
-    ctx.beginPath();
-    for(let p=0;p<5;p++){
-      const a=toR(p*72-90),ai=toR(p*72+36-90);
-      const ox=x+Math.cos(a)*sz,oy=y+Math.sin(a)*sz;
-      const ix=x+Math.cos(ai)*sz*.45,iy=y+Math.sin(ai)*sz*.45;
-      if(p===0)ctx.moveTo(ox,oy);else ctx.lineTo(ox,oy);
-      ctx.lineTo(ix,iy);
-    }
-    ctx.closePath();ctx.fill();
-    ctx.shadowBlur=0;
-  });
-
-  // Legend
-  const legend=document.getElementById('starsLegend');
-  legend.innerHTML='';
-  const usedMem=[...new Set(Object.values(sentShows).map(v=>typeof v==='object'?v.m:v))];
-  usedMem.forEach(mid=>{
-    const m=MEMBERS.find(x=>x.id===mid);if(!m)return;
-    const item=document.createElement('div');item.className='sl-item';
-    item.innerHTML=`<div class="sl-dot" style="background:${m.color}"></div><span>${lang==='jp'?m.jp:m.name}</span>`;
-    legend.appendChild(item);
-  });
+  const ov = getEl('showtimeOverlay');
+  if(ov) ov.classList.remove('on');
 }
 
 // ════════════════════════════════════════════════
@@ -3330,63 +3079,65 @@ function renderStarsCanvas(){
 // ════════════════════════════════════════════════
 function renderTitleZone(){
   const {tier,stars,oshi,rainbow}=computeTitles();
-  // メイン称号は必ずデフォルト値を表示
-  const iconEl = document.getElementById('titleIcon');
-  const nameEl = document.getElementById('titleName');
+  
+  const iconEl = getEl('titleIcon');
+  const nameEl = getEl('titleName');
+  const progEl = getEl('titleProgress');
+  const fillEl = getEl('titleProgFill');
+  const oshiEl = getEl('subTitleOshi');
+  const rbEl = getEl('subTitleRainbow');
+  const mbox = getEl('milestoneBox');
+  const mtxt = getEl('milestoneTxt');
+  const sbStars = getEl('sbStars');
+  const sbTitle = getEl('sbTitle');
+
   if(iconEl) iconEl.textContent = tier.icon || '🌱';
   if(nameEl){
     nameEl.innerHTML = `<span class="txt-jp">${tier.jp||'ルーキー'}</span><span class="txt-en" style="display:none">${tier.en||'ROOKIE'}</span>`;
     if(document.body.classList.contains('lang-en')){
-      nameEl.querySelector('.txt-jp').style.display='none';
-      nameEl.querySelector('.txt-en').style.display='';
+      const jpSpan = nameEl.querySelector('.txt-jp');
+      const enSpan = nameEl.querySelector('.txt-en');
+      if(jpSpan) jpSpan.style.display='none';
+      if(enSpan) enSpan.style.display='';
     }
   }
-  document.getElementById('titleIcon').textContent=tier.icon;
-  document.getElementById('titleName').textContent=lang==='jp'?tier.jp:tier.en;
+  if(iconEl) iconEl.textContent=tier.icon;
+  if(nameEl) nameEl.textContent=lang==='jp'?tier.jp:tier.en;
 
-  // Progress to next tier
-  const progEl=document.getElementById('titleProgress');
-  const fillEl=document.getElementById('titleProgFill');
   if(tier.next){
     const prev=TITLE_TIERS.find(t=>t.next===tier.next)?.min??0;
     const span=tier.next-prev;
     const done=stars-prev;
     const pct=Math.min(done/span*100,100);
-    fillEl.style.width=pct+'%';
-    progEl.textContent=lang==='jp'?`次の称号まで ${tier.next-stars}公演`:`${tier.next-stars} shows to next title`;
+    if(fillEl) fillEl.style.width=pct+'%';
+    if(progEl) progEl.textContent=lang==='jp'?`次の称号まで ${tier.next-stars}公演`:`${tier.next-stars} shows to next title`;
   } else {
-    fillEl.style.width='100%';
-    progEl.textContent=lang==='jp'?'最高称号達成！':'Maximum title achieved!';
+    if(fillEl) fillEl.style.width='100%';
+    if(progEl) progEl.textContent=lang==='jp'?'最高称号達成！':'Maximum title achieved!';
   }
 
-  // Sub titles
-  const oshiEl=document.getElementById('subTitleOshi');
-  if(oshi){oshiEl.textContent=lang==='jp'?oshi.jp:oshi.en;oshiEl.style.color=oshi.color;}
-  else{oshiEl.textContent='—';oshiEl.style.color='';}
-
-  const rbEl=document.getElementById('subTitleRainbow');
-  if(rainbow){rbEl.textContent=lang==='jp'?rainbow.jp:rainbow.en;}
-  else rbEl.textContent='—';
-
-  // Integrity status
-  // integrity badge removed
-
-  // Status bar
-  document.getElementById('sbStars').textContent=stars;
-  document.getElementById('sbTitle').textContent=(lang==='jp'?tier.jp:tier.en).replace(/[🌱⭐💫✨🌟—]/g,'').trim()||tier.icon;
-
-  // Milestone
-  const mbox=document.getElementById('milestoneBox');
-  const mtxt=document.getElementById('milestoneTxt');
-  if(tier.next){
-    mtxt.innerHTML=lang==='jp'
-      ?`<b>${tier.next-stars}公演</b>で「${TITLE_TIERS.find(t=>t.min===tier.next)?.[lang==='jp'?'jp':'en']||''}」に到達`
-      :`<b>${tier.next-stars} more shows</b> to reach <b>${TITLE_TIERS.find(t=>t.min===tier.next)?.en||''}</b>`;
-  } else {
-    mbox.style.display='none';
+  if(oshiEl){
+    if(oshi){oshiEl.textContent=lang==='jp'?oshi.jp:oshi.en;oshiEl.style.color=oshi.color;}
+    else{oshiEl.textContent='—';oshiEl.style.color='';}
   }
 
-  renderStarsCanvas();
+  if(rbEl){
+    if(rainbow){rbEl.textContent=lang==='jp'?rainbow.jp:rainbow.en;}
+    else rbEl.textContent='—';
+  }
+
+  if(sbStars) sbStars.textContent=stars;
+  if(sbTitle) sbTitle.textContent=(lang==='jp'?tier.jp:tier.en).replace(/[🌱⭐💫✨🌟—]/g,'').trim()||tier.icon;
+
+  if(mtxt){
+    if(tier.next){
+      mtxt.innerHTML=lang==='jp'
+        ?`<b>${tier.next-stars}公演</b>で「${TITLE_TIERS.find(t=>t.min===tier.next)?.[lang==='jp'?'jp':'en']||''}」に到達`
+        :`<b>${tier.next-stars} more shows</b> to reach <b>${TITLE_TIERS.find(t=>t.min===tier.next)?.en||''}</b>`;
+    } else {
+      if(mbox) mbox.style.display='none';
+    }
+  }
 }
 
 // ════════════════════════════════════════════════
@@ -3394,56 +3145,88 @@ function renderTitleZone(){
 // ════════════════════════════════════════════════
 function refreshStatusBar(){
   const pwr=Math.round(getPower());
-  document.getElementById('sbStreak').textContent=powerData.streak+'🔥';
-  document.getElementById('sbPower').textContent=pwr;
-  document.getElementById('powerFill').style.width=pwr+'%';
-  document.getElementById('powerValText').textContent=pwr+' / 100';
-  document.getElementById('streakNum').textContent=powerData.streak;
+  setText('sbStreak', powerData.streak+'🔥');
+  setText('sbPower', pwr);
+  
+  const powerFill = getEl('powerFill');
+  if(powerFill) powerFill.style.width=pwr+'%';
+  
+  const powerValText = getEl('powerValText');
+  if(powerValText) powerValText.textContent=pwr+' / 100';
+  
+  setText('streakNum', powerData.streak);
   document.documentElement.style.setProperty('--power',pwr);
   renderTitleZone();
 }
 
 // ════════════════════════════════════════════════
-// SEND STATE MACHINE — 1時間ウィンドウ
+// SEND STATE MACHINE
 // ════════════════════════════════════════════════
 function evaluateSendState(){
-  const btn = document.getElementById('sendBtn');
-  const statusEl = document.getElementById('sendStatus');
+  const btn = getEl('sendBtn');
+  const statusEl = getEl('sendStatus');
+  if(!btn) return;
   
-  // 送信済み
   if(isSent(targetStop)){
     applySentState(); return;
   }
-  // TBA
   if(targetStop.isTBA){
     applyTBAState(); return;
   }
-  // 日時なし
   if(!targetStop.st){
     applyTBAState(); return;
   }
   const diff = new Date(targetStop.st) - new Date();
-  // 過去の公演
   if(diff < -7200000){
     applyExpiredState(); return;
   }
-  // 送信ウィンドウ内 or デモ
   if(diff <= WINDOW_MS || demoMode){
     activateSendReady();
     return;
   }
-  // ウィンドウ外（まだ早い）
   applyLockedState();
 }
-function applyLockedState(){sendReady=false;const b=document.getElementById('sendBtn');b.className='locked';b.style.background='';b.style.boxShadow='';b.style.color='';refreshStep(1);updateSendBtnText();}
-function applyTBAState(){sendReady=false;const b=document.getElementById('sendBtn');b.className='tba-lock';b.style.background='';b.style.boxShadow='';b.style.color='';refreshStep(1);updateSendBtnText();}
-function applyExpiredState(){sendReady=false;const b=document.getElementById('sendBtn');b.className='locked';b.style.background='';b.style.boxShadow='';b.style.color='';refreshStep(1);updateSendBtnText();}
-function applySentState(){sendReady=false;const b=document.getElementById('sendBtn');b.className='sent';b.style.background='';b.style.boxShadow='';b.style.color='';refreshStep(3);updateSendBtnText();}
-function activateSendReady(){if(isSent(targetStop))return;sendReady=true;const b=document.getElementById('sendBtn');b.className='ready';refreshStep(2);updateSendStyle();updateSendBtnText();}
+function applyLockedState(){
+  sendReady=false;
+  const b=getEl('sendBtn');
+  const statusEl = getEl('sendStatus');
+  if(b) b.className='locked';
+  refreshStep(1);
+  updateSendBtnText();
+}
+function applyTBAState(){
+  sendReady=false;
+  const b=getEl('sendBtn');
+  if(b) b.className='tba-lock';
+  refreshStep(1);
+  updateSendBtnText();
+}
+function applyExpiredState(){
+  sendReady=false;
+  const b=getEl('sendBtn');
+  if(b) b.className='locked';
+  refreshStep(1);
+  updateSendBtnText();
+}
+function applySentState(){
+  sendReady=false;
+  const b=getEl('sendBtn');
+  if(b) b.className='sent';
+  refreshStep(3);
+  updateSendBtnText();
+}
+function activateSendReady(){
+  if(isSent(targetStop)) return;
+  sendReady=true;
+  const b=getEl('sendBtn');
+  if(b) b.className='ready';
+  refreshStep(2);
+  updateSendStyle();
+  updateSendBtnText();
+}
 
 function refreshStep(forceStep){
-  // Zone04 redesigned - step tracker removed, use sendStatus text only
-  const statusEl = document.getElementById('sendStatus');
+  const statusEl = getEl('sendStatus');
   if(!statusEl) return;
   const step = forceStep || (sendReady?2:isSent(targetStop)?3:1);
   const diff2 = targetStop.st ? new Date(targetStop.st)-new Date() : null;
@@ -3472,20 +3255,12 @@ function refreshStep(forceStep){
 }
 
 function updateSendBtnText(){
-  const btn=document.getElementById('sendBtn');
+  const btn=getEl('sendBtn');
   if(!btn) return;
-  if(btn.classList.contains('sent')){btn.innerHTML=lang==='jp'?'✦ 送信済み':'✦ SENT';return;}
-  if(btn.classList.contains('ready')){
-    const mn=activeMember.jp||activeMember.name;
-    btn.innerHTML=lang==='jp'?'✦ '+mn+'カラーで光を届ける':'✦ SEND '+activeMember.name+' LIGHT';
-    return;
-  }
-  btn.innerHTML=lang==='jp'?'メンバーを選んでください':'SELECT A MEMBER FIRST';
-}
-function updateSendBtnText(){
-  const btn=document.getElementById('sendBtn'),cls=btn.className;
+  const cls=btn.className;
   const diff2=targetStop.st?new Date(targetStop.st)-new Date():null;
   const expired=diff2!==null&&diff2<0&&!isSent(targetStop);
+  
   if(cls==='ready'){
     const m=diff2!=null?Math.max(0,Math.floor(diff2/60000)):0;
     const pwr=Math.round(getPower());
@@ -3493,17 +3268,26 @@ function updateSendBtnText(){
   } else if(cls==='sent'){
     const sm=sentMem(targetStop)||activeMember;
     btn.textContent=lang==='jp'?`✦ ${sm.jp||sm.name}カラーで送信済み · 次の公演でも送れます`:`✦ Sent as ${sm.name} · Available at next show`;
-  } else if(cls==='tba-lock') btn.textContent=lang==='jp'?'⏳ 会場・開演時間 発表待ち':'⏳ VENUE & TIME TBA';
-  else if(expired) btn.textContent=lang==='jp'?'— この公演は終了しました':'— This show has ended';
-  else{const h=diff2!=null?Math.ceil(diff2/3600000):null;btn.textContent=lang==='jp'?(h!=null&&h<=24?`🔒 あと${h-1}時間で送信ウィンドウが開きます`:'🔒 開演1時間前に送信可能'):(h!=null&&h<=24?`🔒 Window opens in ${h-1}h`:'🔒 UNLOCKS 1H BEFORE SHOWTIME');}
+  } else if(cls==='tba-lock'){
+    btn.textContent=lang==='jp'?'⏳ 会場・開演時間 発表待ち':'⏳ VENUE & TIME TBA';
+  } else if(expired){
+    btn.textContent=lang==='jp'?'— この公演は終了しました':'— This show has ended';
+  } else {
+    const h=diff2!=null?Math.ceil(diff2/3600000):null;
+    btn.textContent=lang==='jp'?(h!=null&&h<=24?`🔒 あと${h-1}時間で送信ウィンドウが開きます`:'🔒 開演1時間前に送信可能'):(h!=null&&h<=24?`🔒 Window opens in ${h-1}h`:'🔒 UNLOCKS 1H BEFORE SHOWTIME');
+  }
 }
 function updateSendStyle(){
-  const btn=document.getElementById('sendBtn');
-  if(btn.className==='ready'){btn.style.background=`linear-gradient(135deg,${activeMember.color},${activeMember.color}77)`;btn.style.boxShadow=`0 4px 28px ${activeMember.color}55`;btn.style.color='#000';updateSendBtnText();}
+  const btn=getEl('sendBtn');
+  if(!btn || btn.className!=='ready') return;
+  btn.style.background=`linear-gradient(135deg,${activeMember.color},${activeMember.color}77)`;
+  btn.style.boxShadow=`0 4px 28px ${activeMember.color}55`;
+  btn.style.color='#000';
+  updateSendBtnText();
 }
 
 // ════════════════════════════════════════════════
-// LIGHT JOURNEY DESCRIPTION (正直な地理描写)
+// LIGHT JOURNEY DESCRIPTION
 // ════════════════════════════════════════════════
 function oceanName(fLa,fLo,tLa,tLo){
   const mLo=(fLo+tLo)/2,mLa=(fLa+tLa)/2,lDiff=Math.abs(tLo-fLo);
@@ -3515,26 +3299,24 @@ function oceanName(fLa,fLo,tLa,tLo){
 }
 
 // ════════════════════════════════════════════════
-// SEND — Worker レート制限 + 光の旅路
+// SEND
 // ════════════════════════════════════════════════
 async function doSend(){
   if(!sendReady||isSent(targetStop))return;
-  const btn=document.getElementById('sendBtn');
+  const btn=getEl('sendBtn');
+  if(!btn) return;
 
-  // ── Step 1: SDS-v2 で送信可否チェック ──────────────
-  // Layer1: ローカル二重チェック → Layer2: GAS署名検証
   const origText = btn.textContent;
   btn.textContent = lang==='jp' ? '⟳ 確認中…' : '⟳ CHECKING…';
   btn.style.cursor = 'wait'; btn.disabled = true;
 
-  const wKey   = RateLimit.showKeyFor(targetStop);
+  const wKey   = showKey(targetStop);
   const sdsResult = await SDS.checkAndSend(wKey, activeMember.id);
 
   btn.style.cursor = ''; btn.disabled = false;
 
   if(!sdsResult.ok) {
-    // 送信拒否（GAS重複 or ローカル重複）
-    markSent(targetStop, activeMember, getPower()); // UIを同期
+    markSent(targetStop, activeMember, getPower());
     sendReady = false; applySentState();
     const reason = sdsResult.reason;
     const msg = lang==='jp'
@@ -3545,109 +3327,82 @@ async function doSend(){
           ? 'Security error. Please reload the page.'
           : 'You already sent your light for this show.\nSend again at the next show!');
     alert(msg);
-    GA.track('sds_blocked', { reason, source: sdsResult.source });
     return;
   }
 
-  // GA計測: 検証ソースを記録
-  GA.track('sds_verified', { source: sdsResult.source });
-
-  // ── Step 2: ローカル記録（SDS内で完了済み） ─────────
   const pwr = getPower();
   markSent(targetStop, activeMember, pwr);
   energyCount++;
 
-  // Cloudflare Worker（設定されている場合のみ、バックグラウンド）
-  if(RateLimit.isEnabled()) {
-    RateLimit.recordSend(wKey, activeMember.id).then(result => {
-      if(result.source === 'worker') GA.track('send_limit_verified', { source: 'worker' });
-    });
-  }
-
-  // ── Step 3: 送出エフェクト（派手） ──────────────
   const fLa=geoGranted&&userLat?userLat:routeFrom.lat;
   const fLo=geoGranted&&userLng?userLng:routeFrom.lng;
   const dist=Math.round(hav(fLa,fLo,targetStop.lat,targetStop.lng));
   const ocean=oceanName(fLa,fLo,targetStop.lat,targetStop.lng);
 
-  // テキストセット
-  const msgEl=document.getElementById('sendMsg');
-  msgEl.textContent=lang==='jp'
+  const sendMsg=getEl('sendMsg');
+  const journeyDesc=getEl('journeyDesc');
+  const powerBonus=getEl('powerBonus');
+  
+  if(sendMsg) sendMsg.textContent=lang==='jp'
     ?`${activeMember.jp||activeMember.name}の光を送りました`
     :`${activeMember.name}'S LIGHT IS ON ITS WAY`;
 
-  document.getElementById('journeyDesc').textContent=lang==='jp'
+  if(journeyDesc) journeyDesc.textContent=lang==='jp'
     ?`${ocean.jp}\n${dist.toLocaleString()} km 先の ${targetStop.city} へ`
     :`${ocean.en}\n${dist.toLocaleString()} km to ${targetStop.city}`;
 
-  document.getElementById('powerBonus').textContent=lang==='jp'
+  if(powerBonus) powerBonus.textContent=lang==='jp'
     ?`⚡ POWER ${Math.round(pwr)} · 光の強度 +${Math.round(pwr/100*100)}%`
     :`⚡ POWER ${Math.round(pwr)} · Intensity +${Math.round(pwr/100*100)}%`;
 
-  // ★ 派手な送出エフェクト発動
   showSendEffect(activeMember, targetStop.city, dist);
 
   setTimeout(()=>{
-    document.getElementById('sendOverlay').classList.remove('on');
+    const sendOverlay = getEl('sendOverlay');
+    if(sendOverlay) sendOverlay.classList.remove('on');
     sendReady=false; applySentState();
     const sm=sentMem(targetStop);
-    if(sm){
-      document.getElementById('tSentTxt').innerHTML=
+    const tSent=getEl('tSent');
+    const tSentTxt=getEl('tSentTxt');
+    if(sm && tSent && tSentTxt){
+      tSentTxt.innerHTML=
         `<span class="txt-jp">${sm.jp||sm.name}カラーで光を送信済み</span>`
         +`<span class="txt-en">Light sent as ${sm.name}</span>`;
-      document.getElementById('tSent').classList.add('on');
+      tSent.classList.add('on');
     }
     refreshCardSent();
-    document.getElementById('eCount').textContent=energyCount.toLocaleString();
+    const eCount = getEl('eCount');
+    if(eCount) eCount.textContent=energyCount.toLocaleString();
     drawEnergy(); renderTitleZone(); refreshStatusBar();
     if(geoGranted&&userLat) updateCompassFromUser();
-    // GA
-    const diff2=targetStop.st?Math.floor((new Date(targetStop.st)-new Date())/86400000):-1;
-    GA.trackSendLight(targetStop.venue,targetStop.city,activeMember.name,pwr,diff2);
-    const {tier}=computeTitles();
-    GA.trackTitleEarned(tier.en,Object.keys(sentShows).length);
-  }, 4000);  // 送出エフェクト分だけ長めに
+  }, 4000);
 }
 
 // ════════════════════════════════════════════════
 // SEND BUTTON INIT
 // ════════════════════════════════════════════════
 function initSendBtn(){
-  const btn = document.getElementById('sendBtn');
-  if(!btn) return;
-  btn.addEventListener('click', doSend);
+  const btn = getEl('sendBtn');
+  if(btn) btn.addEventListener('click', doSend);
   evaluateSendState();
 
-  // 送信デモ（livePill 3回タップ）
   let tc=0, tt;
-  const pill = document.getElementById('livePill');
-  if(pill) pill.addEventListener('click',()=>{
-    clearTimeout(tt); tc++;
-    if(tc>=3){
-      tc=0; demoMode=true;
-      const dh=document.getElementById('demoHint');
-      if(dh){dh.textContent='✦ DEMO ON';dh.style.color='var(--purple)';}
-      activateSendReady();
-    }
-    tt=setTimeout(()=>tc=0,1000);
-  });
-}
-function initSendBtn(){
-  document.getElementById('sendBtn').addEventListener('click',doSend);
-  evaluateSendState();
-
-  // 送信デモ: ヘッダーを3回タップで解除
-  let tc=0,tt;
-  document.getElementById('livePill').addEventListener('click',()=>{
-    clearTimeout(tt);tc++;
-    if(tc>=3){
-      tc=0;demoMode=true;
-      document.getElementById('demoHint').textContent=lang==='jp'?'✦ デモ ON':'✦ DEMO ON';
-      document.getElementById('demoHint').style.color='var(--gold)';
-      activateSendReady();
-    }
-    tt=setTimeout(()=>tc=0,1000);
-  });
+  const livePill = getEl('livePill');
+  if(livePill){
+    livePill.addEventListener('click',()=>{
+      clearTimeout(tt); tc++;
+      if(tc>=3){
+        tc=0; demoMode=true;
+        const dh=getEl('demoHint');
+        if(dh){
+          dh.textContent=lang==='jp'?'✦ デモ ON':'✦ DEMO ON';
+          dh.style.color='var(--gold)';
+        }
+        activateSendReady();
+      }
+      tt=setTimeout(()=>tc=0,1000);
+    });
+  }
 }
 
 // ════════════════════════════════════════════════
@@ -3663,19 +3418,21 @@ function fmt(ms){
 function updateCountdown(){
   const diff=new Date('2026-04-09T19:00:00+09:00')-new Date();
   const s=fmt(Math.max(diff,0));
-  document.getElementById('countdown2').textContent=s;
-  document.getElementById('mainCnt').textContent=s;
+  setText('mainCnt', s);
 }
 function updateShowtime(){
-  // 自動的に直近公演を再評価
   const _fresh = findNextTarget();
   if(_fresh && _fresh !== targetStop && !demoMode){
     const _fi = TOUR.indexOf(_fresh);
     selectStop(_fresh, _fi);
   }
-  if(!targetStop.st){document.getElementById('showtimeCnt').textContent=fmt(null);return;}
+  const showtimeCnt = getEl('showtimeCnt');
+  if(!targetStop.st){
+    if(showtimeCnt) showtimeCnt.textContent=fmt(null);
+    return;
+  }
   const diff=new Date(targetStop.st)-new Date();
-  document.getElementById('showtimeCnt').textContent=fmt(diff);
+  if(showtimeCnt) showtimeCnt.textContent=fmt(diff);
   if(!isSent(targetStop)&&!targetStop.isTBA){
     if(diff>0&&diff<=WINDOW_MS&&!sendReady)activateSendReady();
     if(diff<=0&&sendReady)applyExpiredState();
@@ -3692,11 +3449,13 @@ function checkShowtimeArrival(){
       shownArrival.add(k);
       localStorage.setItem('bts_lr_arr',JSON.stringify([...shownArrival]));
       const sm=sentMem(v);
-      const el=document.getElementById('showtimeVenue');
-      el.textContent=`${v.city} · ${v.venue}`;
-      if(sm)el.style.color=sm.color;
-      const ov=document.getElementById('showtimeOverlay');
-      ov.classList.add('on');
+      const el=getEl('showtimeVenue');
+      if(el){
+        el.textContent=`${v.city} · ${v.venue}`;
+        if(sm)el.style.color=sm.color;
+      }
+      const ov=getEl('showtimeOverlay');
+      if(ov) ov.classList.add('on');
     }
   });
 }
@@ -3705,7 +3464,9 @@ function checkShowtimeArrival(){
 // SHARE
 // ════════════════════════════════════════════════
 function buildShareCanvas(){
-  const c=document.getElementById('shareCanvas'),ctx=c.getContext('2d'),W=600,H=280;
+  const c=getEl('shareCanvas'),ctx=c?c.getContext('2d'):null;
+  if(!c || !ctx) return;
+  const W=600,H=280;
   const bg=ctx.createLinearGradient(0,0,W,H);bg.addColorStop(0,'#EEF0FF');bg.addColorStop(1,'#E8EAFF');
   ctx.fillStyle=bg;ctx.fillRect(0,0,W,H);
   for(let i=0;i<95;i++){ctx.fillStyle=`rgba(255,255,255,${(Math.random()*.2+.04).toFixed(2)})`;ctx.beginPath();ctx.arc(Math.random()*W,Math.random()*H,Math.random()*1.3,0,Math.PI*2);ctx.fill();}
@@ -3728,59 +3489,70 @@ function buildShareCanvas(){
   ctx.fillText(tag,W-20-ctx.measureText(tag).width,H-14);
 }
 function initShare(){
-  const modal=document.getElementById('shareModal');
-  document.getElementById('shareBtn').addEventListener('click',()=>{buildShareCanvas();modal.classList.add('on');});
-  document.getElementById('closeShare').addEventListener('click',()=>modal.classList.remove('on'));
-  modal.addEventListener('click',e=>{if(e.target===modal)modal.classList.remove('on');});
-  document.querySelectorAll('.spbtn').forEach(btn=>{btn.addEventListener('click',async()=>{try{const sc=document.getElementById('shareCanvas'),blob=await new Promise(r=>sc.toBlob(r,'image/png')),file=new File([blob],'bts-light-route.png',{type:'image/png'}),text=`✦ BTS LIGHT ROUTE · ${routeFrom.city.toUpperCase()} → ${routeTo.city.toUpperCase()} · #BTSLightRoute #BTS_2026TOUR`;if(navigator.share&&navigator.canShare({files:[file]}))await navigator.share({files:[file],text});else{const a=document.createElement('a');a.href=sc.toDataURL('image/png');a.download='bts-light-route.png';a.click();}}catch{const sc=document.getElementById('shareCanvas'),a=document.createElement('a');a.href=sc.toDataURL('image/png');a.download='bts-light-route.png';a.click();}});});
+  const modal=getEl('shareModal');
+  const shareBtn = getEl('shareBtn');
+  const closeShare = getEl('closeShare');
+  
+  if(shareBtn) shareBtn.addEventListener('click',()=>{buildShareCanvas();if(modal)modal.classList.add('on');});
+  if(closeShare) closeShare.addEventListener('click',()=>{if(modal)modal.classList.remove('on');});
+  if(modal) modal.addEventListener('click',e=>{if(e.target===modal)modal.classList.remove('on');});
+  
+  document.querySelectorAll('.spbtn').forEach(btn=>{
+    if(!btn) return;
+    btn.addEventListener('click',async()=>{
+      try{
+        const sc=getEl('shareCanvas');
+        if(!sc) return;
+        const blob=await new Promise(r=>sc.toBlob(r,'image/png')),file=new File([blob],'bts-light-route.png',{type:'image/png'}),text=`✦ BTS LIGHT ROUTE · ${routeFrom.city.toUpperCase()} → ${routeTo.city.toUpperCase()} · #BTSLightRoute`;
+        if(navigator.share&&navigator.canShare({files:[file]}))await navigator.share({files:[file],text});
+        else{
+          const a=document.createElement('a');
+          a.href=sc.toDataURL('image/png');
+          a.download='bts-light-route.png';
+          a.click();
+        }
+      }catch{
+        const sc=getEl('shareCanvas');
+        if(!sc) return;
+        const a=document.createElement('a');
+        a.href=sc.toDataURL('image/png');
+        a.download='bts-light-route.png';
+        a.click();
+      }
+    });
+  });
 }
 
 // ════════════════════════════════════════════════
 // INIT
 // ════════════════════════════════════════════════
 async function init(){
-  // ── 1. 言語ボタン（最初に登録）──
-  document.getElementById('langBtn').addEventListener('click', toggleLang);
+  const langBtn = getEl('langBtn');
+  if(langBtn) langBtn.addEventListener('click', toggleLang);
   
-  // ── 2. セキュリティ初期化 ──
   await Sec.init();
 
-  // ── 3. データ読み込み ──
   powerData = await Sec.load(POWER_KEY, {lastDate:'',streak:0,total:0});
   dailyData  = await Sec.load(DAILY_KEY, {date:'',members:[],rainbowCount:0});
 
-  // ── 4. 本日の訪問記録 ──
   recordDailyVisit();
   resetDailyIfNeeded();
 
-  // ── 5. UI初期化 ──
-  // Canvas を先に初期化（null クラッシュ防止）
   initMapCanvas();
   initEnergyCanvas();
 
   initCards();
-  // 地図: resizeMap後に描画開始
-  resizeMap();
-  if(mc && mc.width === 0){ mc.width = mc.parentElement?.offsetWidth || 358; mc.height = 200; }
-  window.addEventListener('resize', resizeMap);
+  
+  if(typeof resizeMap === 'function') resizeMap();
+  if(mc && mc.width === 0 && mc.parentElement){ mc.width = mc.parentElement.offsetWidth || 358; mc.height = 200; }
+  window.addEventListener('resize', ()=>{ if(typeof resizeMap === 'function') resizeMap(); });
+  
   initCompass();
   initMemberSel();
   initDailyGrid();
   initSendBtn();
   initShare();
-// --- ここをファイルの末尾または適切な場所へ ---
-function resizeMap() {
-  // 1. まず要素が存在するかチェック（TypeError防止）
-  const mapElement = document.getElementById('map'); 
-  // ※ 'map' の部分は、お使いの地図のID（LeafletやGoogle MapsのコンテナID）に合わせてください
-  
-  if (mapElement) {
-    // 2. もし地図ライブラリ（Leaflet等）を使っているなら、再描画命令をここに書く
-    // 例: if (window.map) { window.map.invalidateSize(); }
-    console.log("Map resized successfully.");
-  }
-}
-  // ── 6. 直近公演を自動ターゲットに ──
+
   const _nt  = findNextTarget();
   const _ni  = TOUR.indexOf(_nt);
   const _pi  = Math.max(0, _ni - 1);
@@ -3788,12 +3560,10 @@ function resizeMap() {
   applyTheme(activeMember);
   selectStop(_nt, _ni);
 
-  // ── 7. 称号・ステータス更新 ──
   refreshStatusBar();
   refreshDailyUI();
   renderTitleZone();
 
-  // ── 8. アニメーション開始 ──
   requestAnimationFrame(loopMap);
   drawEnergy();
   updateCountdown();
@@ -3801,145 +3571,48 @@ function resizeMap() {
   setInterval(updateCountdown, 30000);
   setInterval(updateShowtime,  60000);
   setInterval(drawEnergy, 120);
-  // エネルギーカウント自動増加（演出）
   setInterval(()=>{
     energyCount += Math.floor(Math.random()*4)+1;
-    const el = document.getElementById('eCount');
+    const el = getEl('eCount');
     if(el) el.textContent = energyCount.toLocaleString();
   }, 3200);
 
-  // ── 9. 既存の送信チェック ──
   checkShowtimeArrival();
 }
+
 // ════════════════════════════════════════════════
-// ════════════════════════════════════════════════
-// RATE LIMIT MODULE — Cloudflare Worker連携
-// 1公演1回制限をサーバー側で保証する
-// ════════════════════════════════════════════════
-const RateLimit = {
-  // GitHub Actions deploy.yml が %%WORKER_URL%% を置換する
-  // ソースコードにURLは書かない（CORS許可ドメインの秘匿）
-  WORKER_URL: '%%WORKER_URL%%',
-  WORKER_KEY:  'bts_lr_fp_v1',
-
-  // ── 匿名フィンガープリント生成 ──────────────────
-  // デバイスを特定するが個人を特定しない
-  // localStorage に永続化（消去されると新規扱い = ゲートが緩くなる方向のみ）
-  async getFingerprint() {
-    const saved = localStorage.getItem(this.WORKER_KEY);
-    if(saved && /^[0-9a-f]{64}$/i.test(saved)) return saved;
-
-    // Canvas fingerprint + タイムスタンプ でエントロピーを確保
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    ctx.textBaseline = 'top';
-    ctx.font = '14px Chakra Petch, monospace';
-    ctx.fillText('BTS🌟✦光💜', 2, 2);
-    const canvasData = canvas.toDataURL();
-
-    const raw = canvasData + navigator.language + screen.width + screen.height
-              + navigator.hardwareConcurrency + (navigator.deviceMemory || 0)
-              + Date.now().toString(36);  // 消去後は別IDになる（緩い方向）
-
-    const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(raw));
-    const fp  = Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
-    localStorage.setItem(this.WORKER_KEY, fp);
-    return fp;
-  },
-
-  // ── Worker用トークン生成 ────────────────────────
-  // manifest.json の日次キーで署名
-  // → サーバーは WORKER_SECRET で独立検証するため、トークン盗用でもバイパス不可
-  async getToken(showKey) {
-    if(!Sec.manifest?.k) return 'unsigned-' + Date.now();
-    const key = await crypto.subtle.importKey(
-      'raw', new TextEncoder().encode(Sec.manifest.k),
-      { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']
-    );
-    const sig = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(showKey));
-    return Array.from(new Uint8Array(sig)).map(b=>b.toString(16).padStart(2,'0')).join('');
-  },
-
-  // ── Worker が設定されているか ───────────────────
-  isEnabled() {
-    return this.WORKER_URL && !this.WORKER_URL.startsWith('%%');
-  },
-
-  // ── 送信可能か確認 (check-send) ─────────────────
-  async checkAllowed(showKey) {
-    if(!this.isEnabled()) return { allowed: true, source: 'local' };
-    try {
-      const [fp, token] = await Promise.all([this.getFingerprint(), this.getToken(showKey)]);
-      const res = await fetch(this.WORKER_URL + '/check-send', {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ showKey, token, fingerprint: fp }),
-        signal:  AbortSignal.timeout(4000),
-      });
-      const data = await res.json();
-      return { ...data, source: 'worker' };
-    } catch(e) {
-      console.warn('[RateLimit] Worker unreachable — fallback to local check', e);
-      return { allowed: true, source: 'local-fallback' };  // ネットワーク障害時はローカルに委ねる
-    }
-  },
-
-  // ── 送信を記録 (record-send) ────────────────────
-  async recordSend(showKey, memberId) {
-    if(!this.isEnabled()) return { ok: true, source: 'local' };
-    try {
-      const [fp, token] = await Promise.all([this.getFingerprint(), this.getToken(showKey)]);
-      const res = await fetch(this.WORKER_URL + '/record-send', {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ showKey, token, fingerprint: fp, memberId }),
-        signal:  AbortSignal.timeout(4000),
-      });
-      return { ...(await res.json()), source: 'worker' };
-    } catch(e) {
-      console.warn('[RateLimit] record-send failed', e);
-      return { ok: true, source: 'local-fallback' };
-    }
-  },
-
-  // ── KV Key 生成（Worker側と同じロジック） ─────────
-  showKeyFor(v) {
-    return `${v.fd}_${v.city}`;
-  }
-};
-
 // GA4 ANALYTICS MODULE
 // ════════════════════════════════════════════════
 const GA = {
   CONSENT_KEY: 'bts_lr_consent_v1',
 
-  // 起動時: 保存済み同意状態を復元
   init() {
     const saved = localStorage.getItem(this.CONSENT_KEY);
+    const banner = getEl('consentBanner');
     if(saved === 'granted') {
-      this.grant(false);   // バナー非表示でグラント
+      this.grant(false);
     } else if(saved === 'denied') {
-      // denied のまま — バナー非表示
+      // keep hidden
     } else {
-      // 未決定 — バナー表示（初回訪問）
-      document.getElementById('consentBanner').classList.add('show');
+      if(banner) banner.classList.add('show');
     }
 
-    // バナーボタン
-    document.getElementById('cbAccept').addEventListener('click', () => this.grant(true));
-    document.getElementById('cbDecline').addEventListener('click', () => this.deny());
-
-    // プライバシー設定リンク（再設定可能）
-    document.getElementById('privacyLink').addEventListener('click', () => {
-      document.getElementById('consentBanner').classList.add('show');
+    const cbAccept = getEl('cbAccept');
+    const cbDecline = getEl('cbDecline');
+    const privacyLink = getEl('privacyLink');
+    
+    if(cbAccept) cbAccept.addEventListener('click', () => this.grant(true));
+    if(cbDecline) cbDecline.addEventListener('click', () => this.deny());
+    if(privacyLink) privacyLink.addEventListener('click', () => {
+      if(banner) banner.classList.add('show');
     });
   },
 
   grant(save = true) {
     if(save) localStorage.setItem(this.CONSENT_KEY, 'granted');
     gtag('consent', 'update', { analytics_storage: 'granted' });
-    document.getElementById('consentBanner').classList.remove('show');
-    // 同意後に初回ページビューを送信
+    const banner = getEl('consentBanner');
+    if(banner) banner.classList.remove('show');
     gtag('event', 'page_view', {
       page_title:    'BTS Light Route',
       page_location: location.href,
@@ -3949,37 +3622,30 @@ const GA = {
   deny() {
     localStorage.setItem(this.CONSENT_KEY, 'denied');
     gtag('consent', 'update', { analytics_storage: 'denied' });
-    document.getElementById('consentBanner').classList.remove('show');
+    const banner = getEl('consentBanner');
+    if(banner) banner.classList.remove('show');
   },
 
-  // ── カスタムイベント送信ヘルパー ──
-  // 同意状態に関係なく呼び出せる（denied なら gtag が内部でブロック）
   track(eventName, params = {}) {
-    try { gtag('event', eventName, params); } catch(e) { /* GA未ロード時 */ }
+    try { gtag('event', eventName, params); } catch(e) {}
   },
 
-  // ── 計測するカスタムイベント一覧 ──
-
-  // Zone04: 公演への光を送信
   trackSendLight(venue, city, memberName, power, daysToShow) {
     this.track('send_light', {
       venue_city:    city,
       member_name:   memberName,
       power_level:   Math.round(power),
       days_to_show:  daysToShow,
-      // PII送信なし: 位置情報・ユーザーIDは一切含まない
     });
   },
 
-  // Zone05: 毎日のメンバーチェックイン
   trackDailyCheckin(memberId, checkinCount) {
     this.track('daily_checkin', {
       member_id:     memberId,
-      daily_count:   checkinCount,   // 今日何人目か
+      daily_count:   checkinCount,
     });
   },
 
-  // Zone05: 虹達成
   trackRainbow(totalRainbows, streakDays) {
     this.track('rainbow_achieved', {
       total_rainbows: totalRainbows,
@@ -3987,7 +3653,6 @@ const GA = {
     });
   },
 
-  // Zone06: 称号変化
   trackTitleEarned(titleEn, totalStars) {
     this.track('title_earned', {
       title:       titleEn,
@@ -3995,124 +3660,23 @@ const GA = {
     });
   },
 
-  // Zone03: 位置情報許可
   trackGeoGranted() {
     this.track('geo_permission_granted');
   },
 
-  // 言語切替
   trackLangSwitch(to) {
     this.track('language_switch', { to_lang: to });
   },
 
-  // シェアボタン
   trackShare(platform) {
     this.track('share_route_image', { platform });
   },
 };
 
-// ────────────────────────────────────────────────
-// GA計測を既存関数にフック（既存コードを改変せず追加）
-// ────────────────────────────────────────────────
-
-// doSend フック
-const _origDoSend = doSend;
-window.doSend = async function() {
-  await _origDoSend.apply(this, arguments);
-  if(isSent(targetStop)) {
-    const diff = targetStop.st ? Math.floor((new Date(targetStop.st) - new Date()) / 86400000) : -1;
-    GA.trackSendLight(targetStop.venue, targetStop.city, activeMember.name, getPower(), diff);
-    // 称号変化チェック
-    const {tier} = computeTitles();
-    GA.trackTitleEarned(tier.en, Object.keys(sentShows).length);
-  }
-};
-document.getElementById('sendBtn').removeEventListener('click', doSend);
-document.getElementById('sendBtn').addEventListener('click', window.doSend);
-
-// checkInMember フック（GA計測）
-// checkInMember は {action:'added'|'removed'|'locked', memberId} を返す
-const _origCheckIn = checkInMember;
-window.checkInMember = function(memberId) {
-  const result = _origCheckIn(memberId);
-  if(result && result.action === 'added') {
-    try {
-      GA.trackDailyCheckin(memberId, dailyData.members.length);
-      if(dailyData.members.length === 7) {
-        GA.trackRainbow(dailyData.rainbowCount || 0, powerData.streak);
-      }
-    } catch(e) {}
-  }
-  return result;
-};
-
-// 言語切替フック
-const _origToggleLang = toggleLang;
-window.toggleLang = function() {
-  _origToggleLang();
-  GA.trackLangSwitch(lang);
-};
-// lang listener managed in init()
-
-// 位置情報許可フック
-const _origRequestGeo = requestGeo;
-window.requestGeo = function() {
-  _origRequestGeo();
-  // 成功コールバックでGA計測（requestGeo内部のSuccessで呼ばれる）
-  const origGetPos = navigator.geolocation?.getCurrentPosition?.bind(navigator.geolocation);
-  if(origGetPos && !window._geoPatchedForGA) {
-    window._geoPatchedForGA = true;
-    navigator.geolocation.getCurrentPosition = function(suc, err, opts) {
-      return origGetPos((pos) => { GA.trackGeoGranted(); suc(pos); }, err, opts);
-    };
-  }
-};
-
-// シェアフック
-document.querySelectorAll('.spbtn').forEach((btn, i) => {
-  const platforms = ['x', 'instagram', 'threads', 'tiktok'];
-  btn.addEventListener('click', () => GA.trackShare(platforms[i] || 'unknown'));
+window.addEventListener('DOMContentLoaded', () => { 
+  init(); 
+  GA.init(); 
 });
-
-window.addEventListener('DOMContentLoaded', () => { init(); GA.init(); });
 </script>
-
-<!--
-════════════════════════════════════════════════════════════
-  GitHub Actions WORKFLOW — .github/workflows/manifest.yml
-  このファイルをリポジトリに追加すると、毎日 manifest.json
-  が自動生成され、称号データのHMAC署名が有効になります。
-  
-  必要なシークレット: GitHub Settings > Secrets > SIGN_KEY
-  (任意の長いランダム文字列 例: openssl rand -hex 32)
-════════════════════════════════════════════════════════════
-
-name: Generate Manifest
-on:
-  schedule:
-    - cron: '0 0 * * *'   # 毎日 UTC 0:00
-  workflow_dispatch:        # 手動実行も可能
-
-jobs:
-  manifest:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Generate signed manifest
-        env:
-          SIGN_KEY: ${{ secrets.SIGN_KEY }}
-        run: |
-          DATE=$(date +%Y-%m-%d)
-          KEY=$(echo -n "${SIGN_KEY}${DATE}" | openssl dgst -sha256 -hex | cut -d' ' -f2)
-          echo "{\"date\":\"${DATE}\",\"k\":\"${KEY}\",\"v\":1}" > manifest.json
-      - name: Commit manifest
-        run: |
-          git config user.name "github-actions"
-          git config user.email "actions@github.com"
-          git add manifest.json
-          git diff --staged --quiet || git commit -m "chore: update manifest [skip ci]"
-          git push
-
--->
 </body>
 </html>
