@@ -3,6 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" href="./icons/icon-192.png" type="image/png">
+<link rel="apple-touch-icon" href="./icons/icon-192.png">
 <meta name="theme-color" content="#F4F2FF">
 
 <!-- ══════════════════════════════════════════════════════
@@ -28,7 +30,7 @@
 <meta property="og:title"       content="From Here. To the Stage. | BTS World Tour 2026">
 <meta property="og:description"
   content="BTS World Tour 2026。33都市66公演の光の航路。開演1時間前、会場に向けて光を送る。非公式体験。">
-<meta property="og:image"       content="%%SITE_URL%%/og-image.png">
+<meta property="og:image"       content="%%SITE_URL%%/icons/icon-192.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta property="og:image:alt"   content="BTS World Tour 2026 light route map">
@@ -40,7 +42,7 @@
 <meta name="twitter:card"        content="summary_large_image">
 <meta name="twitter:title"       content="From Here. To the Stage. | BTS World Tour 2026">
 <meta name="twitter:description" content="33都市66公演。開演1時間前、会場に向けて光を送る非公式体験。">
-<meta name="twitter:image"       content="%%SITE_URL%%/og-image.png">
+<meta name="twitter:image"       content="%%SITE_URL%%/icons/icon-192.png">
 
 <!-- ── Canonical ── -->
 <link rel="canonical" href="%%SITE_URL%%">
@@ -52,8 +54,7 @@
 
 <!-- ── PWA manifest ── -->
 <link rel="manifest" href="./app.webmanifest">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Light Route">
 
 <!-- ══════════════════════════════════════════════════
@@ -2454,6 +2455,15 @@ let mc, mctx;
 function initMapCanvas(){
   mc   = document.getElementById('mapCanvas');
   mctx = mc ? mc.getContext('2d') : null;
+}
+function resizeMap(){
+  if(!mc) return;
+  const parent = mc.parentElement;
+  if(!parent) return;
+  const r = parent.getBoundingClientRect();
+  mc.width  = r.width  > 0 ? r.width  : (parent.offsetWidth  || 358);
+  mc.height = 210;
+  drawMap();
 }
 // ══ 主要都市座標 ══
 const BGCIT=[[35.6,139.7],[37.6,127],[22.3,114.2],[1.35,103.8],[13.8,100.5],[39.9,116.4],[28.6,77.2],[51.5,-0.1],[48.9,2.4],[52.5,13.4],[40.4,-3.7],[41.9,12.5],[55.8,37.6],[40.7,-74],[34.1,-118.2],[41.9,-87.6],[19.4,-99.1],[-23.5,-46.6],[-34.6,-58.4],[4.7,-74.1],[-12.0,-77.0],[-33.5,-70.6],[22.6,120.3],[14.6,121.0],[22.3,114.2],[27.9,-82.5],[31.8,-106.5],[36.1,-115.2],[40.8,-74.1],[39.3,-76.6],[32.7,-97.1]];

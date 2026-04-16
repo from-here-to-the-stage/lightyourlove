@@ -1,11 +1,11 @@
 {
   "name": "From Here. To the Stage.",
-  "short_name": "Light Route",
-  "description": "BTS World Tour 2026 fan light experience. Send your light to the venue.",
+  "short_name": "FHTS",
+  "description": "BTS ARIRANG World Tour 2026 fan light experience.",
   "start_url": "./",
   "display": "standalone",
-  "background_color": "#090c13",
-  "theme_color": "#090c13",
+  "background_color": "#F4F2FF",
+  "theme_color": "#5B3FD9",
   "orientation": "portrait-primary",
   "lang": "ja",
   "icons": [
@@ -22,13 +22,8 @@
       "purpose": "any maskable"
     }
   ],
-  "categories": ["entertainment", "music"],
-  "screenshots": [
-    {
-      "src": "./og-image.png",
-      "sizes": "1200x630",
-      "type": "image/png",
-      "label": "BTS World Tour 2026 Light Route Map"
-    }
+  "categories": [
+    "entertainment",
+    "music"
   ]
 }
