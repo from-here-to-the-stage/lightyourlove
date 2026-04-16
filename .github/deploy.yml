@@ -1,0 +1,106 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages:    write
+  id-token: write
+
+concurrency:
+  group:            pages
+  cancel-in-progress: true
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url:  ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Resolve SITE_URL
+        id: site
+        env:
+          SITE_URL_VAR: ${{ vars.SITE_URL }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: |
+          if [ -z "$SITE_URL_VAR" ]; then
+            OWNER=$(echo $GITHUB_REPOSITORY | cut -d'/' -f1)
+            REPO=$(echo $GITHUB_REPOSITORY | cut -d'/' -f2)
+            echo "url=https://$OWNER.github.io/$REPO" >> $GITHUB_OUTPUT
+          else
+            echo "url=$SITE_URL_VAR" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Build
+        env:
+          GA4_ID:     ${{ secrets.GA4_ID }}
+          SIGN_KEY:   ${{ secrets.SIGN_KEY }}
+          WORKER_URL: ${{ secrets.WORKER_URL }}
+          GAS_URL:    ${{ secrets.GAS_URL }}
+          SITE_URL:   ${{ steps.site.outputs.url }}
+        run: |
+          mkdir -p dist
+          cp -r * dist/ 2>/dev/null || true
+          rm -rf dist/dist dist/.git dist/.github
+
+          # 🚨 以前のエラー（sed: no previous regular expression）を確実に防ぐ記述
+          # 変数が空でも sed コマンドが壊れないように、シェル変数を経由させます。
+          
+          TARGET_FILE="dist/index.html"
+          
+          # 置換処理（変数が空でも sed の構文が崩れないように記述）
+          sed -i "s|%%GA4_ID%%|${GA4_ID:-G-XXXXXXXXXX}|g" "$TARGET_FILE"
+          sed -i "s|%%SITE_URL%%|${SITE_URL:-https://localhost}|g" "$TARGET_FILE"
+          sed -i "s|%%WORKER_URL%%|${WORKER_URL:-#}|g" "$TARGET_FILE"
+          sed -i "s|%%GAS_URL%%|${GAS_URL:-#}|g" "$TARGET_FILE"
+          
+          # GA4スクリプト置換
+          GA4_TAG="<script async src='https://www.googletagmanager.com/gtag/js?id=${GA4_ID:-G-XXXXXXXXXX}'></script>"
+          sed -i "s||${GA4_TAG}|g" "$TARGET_FILE"
+
+          # HMAC署名（SIGN_KEYが空の場合のフォールバック）
+          DATE=$(date +%Y-%m-%d)
+          if [ -n "$SIGN_KEY" ]; then
+            TOKEN=$(echo -n "${SIGN_KEY}${DATE}" | openssl dgst -sha256 -hex | sed 's/^.* //')
+          else
+            TOKEN="offline-mode-token"
+          fi
+          sed -i "s|%%DAILY_TOKEN%%|${TOKEN}|g" "$TARGET_FILE"
+
+      - name: Security Audit
+        env:
+          SIGN_KEY: ${{ secrets.SIGN_KEY }}
+        run: |
+          if [ -n "$SIGN_KEY" ] && grep -rq "$SIGN_KEY" dist/ 2>/dev/null; then
+            echo "SECURITY FAIL: SIGN_KEY leaked"
+            exit 1
+          fi
+          echo "Security audit passed"
+
+      - name: Validate placeholders
+        run: |
+          # 意図的な残存(GA4_SCRIPT)以外に %% があれば失敗させる
+          if grep '%%' dist/index.html | grep -v '%%GA4_SCRIPT%%'; then
+            echo "Error: Unreplaced placeholders detected."
+            exit 1
+          fi
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
