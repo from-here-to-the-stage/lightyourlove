@@ -1,11 +1,5 @@
 name: Deploy to GitHub Pages
 
-# ────────────────────────────────────────────────────────────────
-# 必要な GitHub Secrets / Variables:
-#   GA4_ID, SIGN_KEY, WORKER_URL (Secrets)
-#   SITE_URL (Variables)
-# ────────────────────────────────────────────────────────────────
-
 on:
   push:
     branches: [main]
@@ -28,9 +22,9 @@ jobs:
       url:  ${{ steps.deployment.outputs.page_url }}
 
     steps:
-      # 1. チェックアウト
+      # 1. チェックアウト (v4.2.2)
       - name: Checkout
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 
 
       # 2. SITE_URL 決定
       - name: Resolve SITE_URL
@@ -58,24 +52,19 @@ jobs:
           mkdir -p dist
           cp -r * dist/ 2>/dev/null || true
           rm -rf dist/dist dist/.git dist/.github
-
-          # インデックスファイルの置換 (セキュリティに配慮し変数を埋め込み)
           sed -i "s|%%GA4_ID%%|${GA4_ID}|g" dist/index.html
           sed -i "s|%%SITE_URL%%|${SITE_URL}|g" dist/index.html
           sed -i "s|%%WORKER_URL%%|${WORKER_URL}|g" dist/index.html
-          
-          # HMAC署名用のトークン生成 (Daily)
           DATE=$(date +%Y-%m-%d)
           DAILY_TOKEN=$(echo -n "${SIGN_KEY}${DATE}" | openssl dgst -sha256 -hex | cut -d' ' -f2)
           sed -i "s|%%DAILY_TOKEN%%|${DAILY_TOKEN}|g" dist/index.html
 
-      # 4. セキュリティ監査 (Secretsの漏洩チェック)
+      # 4. セキュリティ監査
       - name: Security Audit
         env:
           SIGN_KEY: ${{ secrets.SIGN_KEY }}
         run: |
           FAIL=0
-          # dist 内に SIGN_KEY が含まれていないことを確認
           if [ -n "${SIGN_KEY:-}" ] && grep -rq "${SIGN_KEY}" dist/ 2>/dev/null; then
             echo "SECURITY FAIL: SIGN_KEY found in dist"
             FAIL=1
@@ -83,17 +72,17 @@ jobs:
           [ "$FAIL" -eq 0 ] && echo "Security audit passed"
           exit $FAIL
 
-      # 5. GitHub Pages 設定
+      # 5. Setup Pages (v5.0.0 正式ハッシュ)
       - name: Setup Pages
-        uses: actions/configure-pages@913d31288e401ecbe20a59a7f34c1143a5796c9c # v5.0.0 (ハッシュを修正)
+        uses: actions/configure-pages@1fb3643d0cd09d44e456165c7477d2473420040e 
 
-      # 6. アーティファクトのアップロード
+      # 6. Upload artifact (v3.0.1 正式ハッシュ)
       - name: Upload artifact
-        uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa # v3.0.1
+        uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa 
         with:
           path: dist
 
-      # 7. デプロイ実行
+      # 7. Deploy to GitHub Pages (v4.0.5 正式ハッシュ)
       - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@d6d577ef304f042b99a34d284f3c9597a775c7b9 # v4.0.5
+        uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0154846585c7e19
