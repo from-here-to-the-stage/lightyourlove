@@ -1423,6 +1423,8 @@ body.lang-en .txt-en{display:inline;}
       </button>
     </div>
   </div>
+  <!-- energyCanvas: JS内部描画用（非表示） -->
+  <canvas id="energyCanvas" width="92" height="92" style="display:none;"></canvas>
 </div>
 
 <!-- ZONE 4 LIGHT SEND -->
@@ -2447,7 +2449,12 @@ function selectStop(v,i){
 // ════════════════════════════════════════════════
 // MAP
 // ════════════════════════════════════════════════
-const mc=document.getElementById('mapCanvas'),mctx=mc.getContext('2d');
+// mc/mctx は init() 内で初期化（トップレベルの null クラッシュ防止）
+let mc, mctx;
+function initMapCanvas(){
+  mc   = document.getElementById('mapCanvas');
+  mctx = mc ? mc.getContext('2d') : null;
+}
 // ══ 主要都市座標 ══
 const BGCIT=[[35.6,139.7],[37.6,127],[22.3,114.2],[1.35,103.8],[13.8,100.5],[39.9,116.4],[28.6,77.2],[51.5,-0.1],[48.9,2.4],[52.5,13.4],[40.4,-3.7],[41.9,12.5],[55.8,37.6],[40.7,-74],[34.1,-118.2],[41.9,-87.6],[19.4,-99.1],[-23.5,-46.6],[-34.6,-58.4],[4.7,-74.1],[-12.0,-77.0],[-33.5,-70.6],[22.6,120.3],[14.6,121.0],[22.3,114.2],[27.9,-82.5],[31.8,-106.5],[36.1,-115.2],[40.8,-74.1],[39.3,-76.6],[32.7,-97.1]];
 
@@ -2479,6 +2486,7 @@ function drawContinent(pts,W,H){
 }
 
 function drawMap(){
+  if(!mc||!mctx)return;  // canvas not initialized
   const W=mc.width,H=mc.height;
   if(W===0||H===0)return;  // サイズ0では描画しない
   mctx.clearRect(0,0,W,H);
@@ -2567,7 +2575,7 @@ function drawMap(){
   }
 }
 let lastMap=0;
-function loopMap(ts){if(ts-lastMap>60){planeT+=.005*planeDir;if(planeT>=1){planeT=1;planeDir=-1;}if(planeT<=0){planeT=0;planeDir=1;}lastMap=ts;drawMap();}requestAnimationFrame(loopMap);}
+function loopMap(ts){if(!mc||!mctx){requestAnimationFrame(loopMap);return;}if(ts-lastMap>60){planeT+=.005*planeDir;if(planeT>=1){planeT=1;planeDir=-1;}if(planeT<=0){planeT=0;planeDir=1;}lastMap=ts;drawMap();}requestAnimationFrame(loopMap);}
 
 function setRoute(from,to){
   routeFrom=from;routeTo=to;
@@ -2637,8 +2645,14 @@ function rotateNeedle(a){document.getElementById('needle').style.transition='tra
 // ════════════════════════════════════════════════
 // ENERGY RING
 // ════════════════════════════════════════════════
-const ec=document.getElementById('energyCanvas').getContext('2d');
+// ec は init() 内で初期化
+let ec;
+function initEnergyCanvas(){
+  const ecEl = document.getElementById('energyCanvas');
+  ec = ecEl ? ecEl.getContext('2d') : null;
+}
 function drawEnergy(){
+  if(!ec) return;  // energyCanvas not ready
   const cx=46,cy=46,r=33,W=92,H=92;
   ec.clearRect(0,0,W,H);
   // 背景円（ライトテーマ: 薄いラベンダー）
@@ -3713,10 +3727,14 @@ async function init(){
   resetDailyIfNeeded();
 
   // ── 5. UI初期化 ──
+  // Canvas を先に初期化（null クラッシュ防止）
+  initMapCanvas();
+  initEnergyCanvas();
+
   initCards();
-  // 地図: resizeMap後に描画開始（CSS未適用でも最低200pxを保証）
+  // 地図: resizeMap後に描画開始
   resizeMap();
-  if(mc.width === 0){ mc.width = mc.parentElement.offsetWidth || 358; mc.height = 200; }
+  if(mc && mc.width === 0){ mc.width = mc.parentElement?.offsetWidth || 358; mc.height = 200; }
   window.addEventListener('resize', resizeMap);
   initCompass();
   initMemberSel();
