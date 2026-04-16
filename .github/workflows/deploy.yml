@@ -51,27 +51,25 @@ jobs:
           cp -r * dist/ 2>/dev/null || true
           rm -rf dist/dist dist/.git dist/.github
 
-          # 🚨 sedを捨ててperlを使用（変数が空でも絶対にエラーにならない方法）
-          # 231行のロジックをより安全に実行します
-          
+          # 🛡️ sedの自爆を防ぐためPerlを使用。変数が空でもエラーになりません。
           TARGET="dist/index.html"
           
-          perl -i -pe "s|%%GA4_ID%%|\$ENV{GA4_ID}|g" "$TARGET"
-          perl -i -pe "s|%%SITE_URL%%|\$ENV{SITE_URL}|g" "$TARGET"
-          perl -i -pe "s|%%WORKER_URL%%|\$ENV{WORKER_URL}|g" "$TARGET"
-          perl -i -pe "s|%%GAS_URL%%|\$ENV{GAS_URL}|g" "$TARGET"
+          perl -i -pe "s|%%GA4_ID%%|\$ENV{GA4_ID} // 'G-XXXXXXXXXX'|ge" "$TARGET"
+          perl -i -pe "s|%%SITE_URL%%|\$ENV{SITE_URL} // ''|ge" "$TARGET"
+          perl -i -pe "s|%%WORKER_URL%%|\$ENV{WORKER_URL} // ''|ge" "$TARGET"
+          perl -i -pe "s|%%GAS_URL%%|\$ENV{GAS_URL} // ''|ge" "$TARGET"
           
-          # GA4スクリプト置換
-          GA4_TAG="<script async src='https://www.googletagmanager.com/gtag/js?id=$GA4_ID'></script>"
+          # GA4タグ置換
+          GA4_TAG="<script async src='https://www.googletagmanager.com/gtag/js?id=${GA4_ID}'></script>"
           export GA4_TAG
           perl -i -pe "s||\$ENV{GA4_TAG}|g" "$TARGET"
 
-          # HMAC署名
+          # 署名生成ロジック
           DATE=$(date +%Y-%m-%d)
           if [ -n "$SIGN_KEY" ]; then
             DAILY_TOKEN=$(echo -n "${SIGN_KEY}${DATE}" | openssl dgst -sha256 -hex | awk '{print $NF}')
           else
-            DAILY_TOKEN="offline-mode-token"
+            DAILY_TOKEN="static-token"
           fi
           export DAILY_TOKEN
           perl -i -pe "s|%%DAILY_TOKEN%%|\$ENV{DAILY_TOKEN}|g" "$TARGET"
@@ -87,7 +85,7 @@ jobs:
 
       - name: Validate placeholders
         run: |
-          # 未置換の %% がないかチェック (GA4_SCRIPTの残骸は許容)
+          # 致命的な未置換プレースホルダー（%%...%%）の残存をチェック
           REMAINING=$(grep '%%' dist/index.html | grep -v '%%GA4_SCRIPT%%' || true)
           if [ -n "$REMAINING" ]; then
             echo "Error: Unreplaced placeholders detected."
