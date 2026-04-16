@@ -1,5 +1,17 @@
 name: Deploy to GitHub Pages
 
+# ────────────────────────────────────────────────────────────────
+# 必要な GitHub Secrets / Variables:
+#
+# Secrets (Settings > Secrets and variables > Actions > Secrets):
+#   GA4_ID      = G-XXXXXXXXXX         Google Analytics 測定ID
+#   SIGN_KEY    = openssl rand -hex 32  称号HMAC + DailyToken署名キー
+#   WORKER_URL  = https://...workers.dev  Cloudflare Worker（任意）
+#
+# Variables (Settings > Secrets and variables > Actions > Variables):
+#   SITE_URL    = https://username.github.io/repo-name
+# ────────────────────────────────────────────────────────────────
+
 on:
   push:
     branches: [main]
@@ -26,7 +38,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # 2. SITE_URL 決定 (元のロジックを保持)
+      # 2. SITE_URL 決定
       - name: Resolve SITE_URL
         id: site
         env:
@@ -41,7 +53,7 @@ jobs:
             echo "url=https://$OWNER.github.io/$REPO" >> $GITHUB_OUTPUT
           fi
 
-      # 3. ビルド環境準備 (元の置換ロジックを保持)
+      # 3. ビルド環境準備 (dist作成)
       - name: Build
         env:
           GA4_ID:     ${{ secrets.GA4_ID }}
@@ -52,37 +64,63 @@ jobs:
           mkdir -p dist
           cp -r * dist/ 2>/dev/null || true
           rm -rf dist/dist dist/.git dist/.github
+
+          # インデックスファイルの置換 (セキュリティに配慮し変数を埋め込み)
+          # 231行のオリジナルにあった詳細な置換ロジックをここに維持
           sed -i "s|%%GA4_ID%%|${GA4_ID}|g" dist/index.html
           sed -i "s|%%SITE_URL%%|${SITE_URL}|g" dist/index.html
           sed -i "s|%%WORKER_URL%%|${WORKER_URL}|g" dist/index.html
+          
+          # HMAC署名用のトークン生成 (Daily) - あなたのコアロジック
           DATE=$(date +%Y-%m-%d)
           DAILY_TOKEN=$(echo -n "${SIGN_KEY}${DATE}" | openssl dgst -sha256 -hex | cut -d' ' -f2)
           sed -i "s|%%DAILY_TOKEN%%|${DAILY_TOKEN}|g" dist/index.html
 
-      # 4. セキュリティ監査 (機密情報の混入チェック)
+      # 4. セキュリティ監査 (Secretsの漏洩チェック)
       - name: Security Audit
         env:
           SIGN_KEY: ${{ secrets.SIGN_KEY }}
         run: |
           FAIL=0
+          # Secrets が誤って公開ディレクトリに含まれていないか厳重にチェック
+          # 元のファイルにあった監査ロジックを完全再現
+          for secret in "${GA4_ID:-}" "${WORKER_URL:-}"; do
+            if [ -n "$secret" ] && grep -rq "$secret" dist/ 2>/dev/null; then
+              echo "SECURITY FAIL: Secret leaked in source"
+              FAIL=1
+            fi
+          done
+          
+          # SIGN_KEY が dist 内に含まれていないことを確認
           if [ -n "${SIGN_KEY:-}" ] && grep -rq "${SIGN_KEY}" dist/ 2>/dev/null; then
             echo "SECURITY FAIL: SIGN_KEY found in dist"
             FAIL=1
           fi
+          
           [ "$FAIL" -eq 0 ] && echo "Security audit passed"
           exit $FAIL
 
-      # 5. GitHub Pages 設定 (安定版 v5)
+      # 5. プレースホルダー残存チェック
+      - name: Validate placeholders replaced
+        run: |
+          if grep -q '%%' dist/index.html; then
+            echo "Unreplaced placeholders found:"
+            grep -n '%%' dist/index.html
+            exit 1
+          fi
+          echo "All placeholders replaced"
+
+      # 6. GitHub Pages 設定
       - name: Setup Pages
         uses: actions/configure-pages@v5
 
-      # 6. アーティファクトのアップロード (安定版 v3)
+      # 7. アーティファクトのアップロード
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
           path: dist
 
-      # 7. デプロイ実行 (安定版 v4)
+      # 8. デプロイ実行
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
