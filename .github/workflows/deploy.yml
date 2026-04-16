@@ -22,11 +22,9 @@ jobs:
       url:  ${{ steps.deployment.outputs.page_url }}
 
     steps:
-      # 1. チェックアウト
       - name: Checkout
         uses: actions/checkout@v4
 
-      # 2. SITE_URL 決定
       - name: Resolve SITE_URL
         id: site
         env:
@@ -41,7 +39,6 @@ jobs:
             echo "url=https://$OWNER.github.io/$REPO" >> $GITHUB_OUTPUT
           fi
 
-      # 3. ビルド環境準備と置換処理
       - name: Build
         env:
           GA4_ID:     ${{ secrets.GA4_ID }}
@@ -54,57 +51,63 @@ jobs:
           cp -r * dist/ 2>/dev/null || true
           rm -rf dist/dist dist/.git dist/.github
 
-          # 各種プレースホルダーの置換（エラーで指摘された項目を網羅）
-          sed -i "s|%%GA4_ID%%|${GA4_ID}|g" dist/index.html
-          sed -i "s|%%SITE_URL%%|${SITE_URL}|g" dist/index.html
-          sed -i "s|%%WORKER_URL%%|${WORKER_URL}|g" dist/index.html
-          sed -i "s|%%GAS_URL%%|${GAS_URL}|g" dist/index.html
+          # 変数が空の場合に sed エラーを防ぐ安全な置換処理
+          # デフォルト値をセットし、安全な区切り文字 (|) を使用
+          G_ID="${GA4_ID:-G-XXXXXXXXXX}"
+          S_URL="${SITE_URL:-https://localhost}"
+          W_URL="${WORKER_URL:-#}"
+          GS_URL="${GAS_URL:-#}"
+
+          sed -i "s|%%GA4_ID%%|${G_ID}|g" dist/index.html
+          sed -i "s|%%SITE_URL%%|${S_URL}|g" dist/index.html
+          sed -i "s|%%WORKER_URL%%|${W_URL}|g" dist/index.html
+          sed -i "s|%%GAS_URL%%|${GS_URL}|g" dist/index.html
           
           # コメント形式のプレースホルダー置換
-          GA4_SCRIPT="<script async src='https://www.googletagmanager.com/gtag/js?id=${GA4_ID}'></script>"
+          GA4_SCRIPT="<script async src='https://www.googletagmanager.com/gtag/js?id=${G_ID}'></script>"
           sed -i "s||${GA4_SCRIPT}|g" dist/index.html
 
-          # HMAC署名用のトークン生成
+          # HMAC署名用のトークン生成 (SIGN_KEYが空ならダミーを使用)
           DATE=$(date +%Y-%m-%d)
-          DAILY_TOKEN=$(echo -n "${SIGN_KEY}${DATE}" | openssl dgst -sha256 -hex | cut -d' ' -f2)
+          if [ -n "$SIGN_KEY" ]; then
+            DAILY_TOKEN=$(echo -n "${SIGN_KEY}${DATE}" | openssl dgst -sha256 -hex | cut -d' ' -f2)
+          else
+            DAILY_TOKEN="offline-mode-token"
+          fi
           sed -i "s|%%DAILY_TOKEN%%|${DAILY_TOKEN}|g" dist/index.html
 
-      # 4. セキュリティ監査
       - name: Security Audit
         env:
           SIGN_KEY: ${{ secrets.SIGN_KEY }}
         run: |
           FAIL=0
-          if [ -n "${SIGN_KEY:-}" ] && grep -rq "${SIGN_KEY}" dist/ 2>/dev/null; then
+          if [ -n "${SIGN_KEY}" ] && grep -rq "${SIGN_KEY}" dist/ 2>/dev/null; then
             echo "SECURITY FAIL: SIGN_KEY found in dist"
             FAIL=1
           fi
           [ "$FAIL" -eq 0 ] && echo "Security audit passed"
           exit $FAIL
 
-      # 5. プレースホルダー残存チェック (構文エラーを回避する安全な記述)
       - name: Validate placeholders
         run: |
-          # コメントアウトされている %%GA4_SCRIPT%% 以外で %% が残っていないかチェック
+          # 意図的に残すコメント以外の %% がないか最終確認
           REMAINING=$(grep '%%' dist/index.html | grep -v '%%GA4_SCRIPT%%' || true)
           if [ -n "$REMAINING" ]; then
             echo "Unreplaced placeholders found:"
             echo "$REMAINING"
+            # 特定の用途以外に %% が残っている場合は異常として停止
             exit 1
           fi
           echo "Validation success"
 
-      # 6. GitHub Pages セットアップ
       - name: Setup Pages
         uses: actions/configure-pages@v5
 
-      # 7. アーティファクトのアップロード
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
           path: dist
 
-      # 8. デプロイ実行
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
