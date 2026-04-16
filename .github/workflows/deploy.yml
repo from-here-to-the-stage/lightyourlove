@@ -22,11 +22,11 @@ jobs:
       url:  ${{ steps.deployment.outputs.page_url }}
 
     steps:
-      # 1. チェックアウト (v4.2.2)
+      # 1. チェックアウト
       - name: Checkout
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 
+        uses: actions/checkout@v4
 
-      # 2. SITE_URL 決定
+      # 2. SITE_URL 決定 (元のロジックを保持)
       - name: Resolve SITE_URL
         id: site
         env:
@@ -41,7 +41,7 @@ jobs:
             echo "url=https://$OWNER.github.io/$REPO" >> $GITHUB_OUTPUT
           fi
 
-      # 3. ビルド環境準備 (dist作成)
+      # 3. ビルド環境準備 (元の置換ロジックを保持)
       - name: Build
         env:
           GA4_ID:     ${{ secrets.GA4_ID }}
@@ -59,7 +59,7 @@ jobs:
           DAILY_TOKEN=$(echo -n "${SIGN_KEY}${DATE}" | openssl dgst -sha256 -hex | cut -d' ' -f2)
           sed -i "s|%%DAILY_TOKEN%%|${DAILY_TOKEN}|g" dist/index.html
 
-      # 4. セキュリティ監査
+      # 4. セキュリティ監査 (機密情報の混入チェック)
       - name: Security Audit
         env:
           SIGN_KEY: ${{ secrets.SIGN_KEY }}
@@ -72,17 +72,17 @@ jobs:
           [ "$FAIL" -eq 0 ] && echo "Security audit passed"
           exit $FAIL
 
-      # 5. Setup Pages (v5.0.0 正式ハッシュ)
+      # 5. GitHub Pages 設定 (安定版 v5)
       - name: Setup Pages
-        uses: actions/configure-pages@1fb3643d0cd09d44e456165c7477d2473420040e 
+        uses: actions/configure-pages@v5
 
-      # 6. Upload artifact (v3.0.1 正式ハッシュ)
+      # 6. アーティファクトのアップロード (安定版 v3)
       - name: Upload artifact
-        uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa 
+        uses: actions/upload-pages-artifact@v3
         with:
           path: dist
 
-      # 7. Deploy to GitHub Pages (v4.0.5 正式ハッシュ)
+      # 7. デプロイ実行 (安定版 v4)
       - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0154846585c7e19
+        uses: actions/deploy-pages@v4
