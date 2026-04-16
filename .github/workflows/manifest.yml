@@ -1,0 +1,64 @@
+name: Rotate Manifest (Daily HMAC Key)
+
+# ────────────────────────────────────────────
+# 称号データの改竄防止: 毎日 UTC 0:00 に
+# SIGN_KEY + 日付 から HMAC-SHA256 キーを生成し
+# manifest.json をコミット → GitHub Pages に反映
+#
+# 必要な GitHub Secret:
+#   SIGN_KEY = <openssl rand -hex 32 で生成>
+#
+# このワークフローへの書き込み権限設定:
+#   Settings > Actions > General > Workflow permissions
+#   → "Read and write permissions" を選択
+# ────────────────────────────────────────────
+
+on:
+  schedule:
+    - cron: '0 0 * * *'    # 毎日 UTC 0:00 (JST 09:00)
+  workflow_dispatch:         # 手動実行も可能
+
+permissions:
+  contents: write
+
+jobs:
+  rotate-manifest:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Generate daily manifest
+        env:
+          SIGN_KEY: ${{ secrets.SIGN_KEY }}
+        run: |
+          DATE=$(date -u +%Y-%m-%d)
+          KEY=$(printf '%s%s' "${SIGN_KEY}" "${DATE}" | openssl dgst -sha256 -hex | awk '{print $2}')
+
+          cat > manifest.json <<EOF
+          {
+            "date": "${DATE}",
+            "k":    "${KEY}",
+            "v":    1
+          }
+          EOF
+
+          echo "✅ Manifest generated for ${DATE}"
+          echo "   Key prefix: ${KEY:0:8}..."
+
+      - name: Commit and push manifest
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add manifest.json
+          # 変更がなければスキップ（冪等）
+          if git diff --staged --quiet; then
+            echo "ℹ️  No changes to manifest.json — skipping commit"
+          else
+            git commit -m "chore: rotate manifest key $(date -u +%Y-%m-%d) [skip ci]"
+            git push
+            echo "✅ Manifest committed and pushed"
+          fi
