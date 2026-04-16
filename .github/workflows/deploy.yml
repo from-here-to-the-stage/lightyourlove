@@ -44,6 +44,38 @@ jobs:
             [ -f "$f" ] && cp "$f" dist/
           done
 
+      - name: Generate SDS-v2 daily salt
+        env:
+          SIGN_KEY: ${{ secrets.SIGN_KEY }}
+        run: |
+          set -euo pipefail
+          # 日付の取得
+          DATE=$(TZ=Asia/Tokyo date +%Y-%m-%d 2>/dev/null || date -u -d '+9 hours' +%Y-%m-%d)
+          TOMORROW=$(date -u -d '+1 day' +%Y-%m-%dT00:00:00Z 2>/dev/null || date -u -v+1d +%Y-%m-%dT00:00:00Z)
+          
+          # SIGN_KEYの存在チェック
+          if [ -z "${SIGN_KEY}" ]; then echo "Error: SIGN_KEY is empty" && exit 1; fi
+          
+          # SALT生成
+          SALT=$(printf '%s%s%s' "${SIGN_KEY}" "daily" "${DATE}" | openssl dgst -sha256 -hex | awk '{print $2}')
+          
+          # JSON書き出し
+          printf '{"date":"%s","salt":"%s","token":"%s","expires":"%s","v":2}\n' \
+            "${DATE}" "${SALT}" "${SALT}" "${TOMORROW}" > "dist/tokens/${DATE}.json"
+          
+          echo "✅ Generated token for ${DATE}"
+
+          # 掃除（ここを修正：条件不成立で終了しないようにする）
+          shopt -s nullglob
+          CUTOFF=$(date -d '-7 days' +%Y-%m-%d 2>/dev/null || date -u -v-7d +%Y-%m-%d)
+          for f in dist/tokens/*.json; do
+            FNAME=$(basename "$f" .json)
+            if [[ "$FNAME" < "$CUTOFF" ]]; then
+              rm "$f" && echo "  Removed old token: $FNAME"
+            fi
+          done
+          echo "✅ Cleanup step finished."
+
       - name: Generate signed manifest
         env:
           SIGN_KEY: ${{ secrets.SIGN_KEY }}
@@ -51,25 +83,7 @@ jobs:
           DATE=$(date -u +%Y-%m-%d)
           KEY=$(printf '%s%s' "${SIGN_KEY}" "${DATE}" | openssl dgst -sha256 -hex | awk '{print $2}')
           printf '{"date":"%s","k":"%s","v":1}\n' "${DATE}" "${KEY}" > dist/manifest.json
-
-      - name: Generate SDS-v2 daily salt
-        env:
-          SIGN_KEY: ${{ secrets.SIGN_KEY }}
-        run: |
-          set -euo pipefail
-          DATE=$(TZ=Asia/Tokyo date +%Y-%m-%d 2>/dev/null || date -u -d '+9 hours' +%Y-%m-%d)
-          TOMORROW=$(date -u -d '+1 day' +%Y-%m-%dT00:00:00Z 2>/dev/null || date -u -v+1d +%Y-%m-%dT00:00:00Z)
-          SALT=$(printf '%s%s%s' "${SIGN_KEY}" "daily" "${DATE}" | openssl dgst -sha256 -hex | awk '{print $2}')
-          mkdir -p dist/tokens
-          printf '{"date":"%s","salt":"%s","token":"%s","expires":"%s","v":2}\n' "${DATE}" "${SALT}" "${SALT}" "${TOMORROW}" > "dist/tokens/${DATE}.json"
-          
-          # 掃除（ファイルがない場合でもエラーにしない設定）
-          shopt -s nullglob
-          CUTOFF=$(date -d '-7 days' +%Y-%m-%d 2>/dev/null || date -u -v-7d +%Y-%m-%d)
-          for f in dist/tokens/*.json; do
-            FNAME=$(basename "$f" .json)
-            [[ "$FNAME" < "$CUTOFF" ]] && rm "$f"
-          done
+          echo "✅ Manifest generated."
 
       - name: Inject SITE_URL
         env:
@@ -78,6 +92,7 @@ jobs:
           for f in dist/index.html dist/sitemap.xml dist/robots.txt; do
             [ -f "$f" ] && sed -i "s|%%SITE_URL%%|${SITE_URL}|g" "$f"
           done
+          echo "✅ SITE_URL injected."
 
       - name: Robust Injection (Python)
         env:
@@ -95,7 +110,6 @@ jobs:
               with open(file_path, 'w', encoding='utf-8') as f:
                   f.write(new_content)
 
-          # GA4 Script injection
           ga_id = os.environ.get('GA4_ID', '')
           ga_script = ""
           if ga_id:
@@ -105,6 +119,7 @@ jobs:
           replace_placeholder('dist/index.html', '%%GAS_URL%%', os.environ.get('GAS_URL', ''))
           replace_placeholder('dist/index.html', '%%WORKER_URL%%', os.environ.get('WORKER_URL', ''))
           PYEOF
+          echo "✅ All dynamic variables injected."
 
       - name: Security Audit
         env:
@@ -123,6 +138,7 @@ jobs:
             grep '%%' dist/index.html
             exit 1
           fi
+          echo "✅ Final validation passed."
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
