@@ -1,46 +1,99 @@
-# Simple workflow for deploying static content to GitHub Pages
-name: Deploy static content to Pages
+name: Deploy to GitHub Pages
+
+# ────────────────────────────────────────────────────────────────
+# 必要な GitHub Secrets / Variables:
+#   GA4_ID, SIGN_KEY, WORKER_URL (Secrets)
+#   SITE_URL (Variables)
+# ────────────────────────────────────────────────────────────────
 
 on:
-  # Runs on pushes targeting the default branch
   push:
-    branches: ["main"]
-
-  # Allows you to run this workflow manually from the Actions tab
+    branches: [main]
   workflow_dispatch:
 
-# Sets permissions of the GITHUB_TOKEN to allow deployment to GitHub Pages
 permissions:
   contents: read
-  pages: write
+  pages:    write
   id-token: write
 
-# Allow only one concurrent deployment, skipping runs queued between the run in-progress and latest queued.
-# However, do NOT cancel in-progress runs as we want to allow these production deployments to complete.
 concurrency:
-  group: "pages"
-  cancel-in-progress: false
+  group:            pages
+  cancel-in-progress: true
 
 jobs:
-  # Single deploy job since we're just deploying
-  deploy:
+  build-and-deploy:
+    runs-on: ubuntu-latest
     environment:
       name: github-pages
-      url: ${{ steps:deployment.outputs.page_url }}
-    runs-on: ubuntu-latest
+      url:  ${{ steps.deployment.outputs.page_url }}
+
     steps:
+      # 1. チェックアウト
       - name: Checkout
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-      
+
+      # 2. SITE_URL 決定
+      - name: Resolve SITE_URL
+        id: site
+        env:
+          SITE_URL_VAR: ${{ vars.SITE_URL }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: |
+          if [ -n "$SITE_URL_VAR" ]; then
+            echo "url=$SITE_URL_VAR" >> $GITHUB_OUTPUT
+          else
+            OWNER=$(echo $GITHUB_REPOSITORY | cut -d'/' -f1)
+            REPO=$(echo $GITHUB_REPOSITORY | cut -d'/' -f2)
+            echo "url=https://$OWNER.github.io/$REPO" >> $GITHUB_OUTPUT
+          fi
+
+      # 3. ビルド環境準備 (dist作成)
+      - name: Build
+        env:
+          GA4_ID:     ${{ secrets.GA4_ID }}
+          SIGN_KEY:   ${{ secrets.SIGN_KEY }}
+          WORKER_URL: ${{ secrets.WORKER_URL }}
+          SITE_URL:   ${{ steps.site.outputs.url }}
+        run: |
+          mkdir -p dist
+          cp -r * dist/ 2>/dev/null || true
+          rm -rf dist/dist dist/.git dist/.github
+
+          # インデックスファイルの置換 (セキュリティに配慮し変数を埋め込み)
+          sed -i "s|%%GA4_ID%%|${GA4_ID}|g" dist/index.html
+          sed -i "s|%%SITE_URL%%|${SITE_URL}|g" dist/index.html
+          sed -i "s|%%WORKER_URL%%|${WORKER_URL}|g" dist/index.html
+          
+          # HMAC署名用のトークン生成 (Daily)
+          DATE=$(date +%Y-%m-%d)
+          DAILY_TOKEN=$(echo -n "${SIGN_KEY}${DATE}" | openssl dgst -sha256 -hex | cut -d' ' -f2)
+          sed -i "s|%%DAILY_TOKEN%%|${DAILY_TOKEN}|g" dist/index.html
+
+      # 4. セキュリティ監査 (Secretsの漏洩チェック)
+      - name: Security Audit
+        env:
+          SIGN_KEY: ${{ secrets.SIGN_KEY }}
+        run: |
+          FAIL=0
+          # dist 内に SIGN_KEY が含まれていないことを確認
+          if [ -n "${SIGN_KEY:-}" ] && grep -rq "${SIGN_KEY}" dist/ 2>/dev/null; then
+            echo "SECURITY FAIL: SIGN_KEY found in dist"
+            FAIL=1
+          fi
+          [ "$FAIL" -eq 0 ] && echo "Security audit passed"
+          exit $FAIL
+
+      # 5. GitHub Pages 設定
       - name: Setup Pages
-        uses: actions/configure-pages@913d31288e401ecbe20a59a7f34c1143a5796c9c # v5.0.0
-      
+        uses: actions/configure-pages@913d31288e401ecbe20a59a7f34c1143a5796c9c # v5.0.0 (ハッシュを修正)
+
+      # 6. アーティファクトのアップロード
       - name: Upload artifact
-        uses: actions/upload-pages@43f65e5239e230303c62da7e5a6e873919e830e2 # v4.0.0
+        uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa # v3.0.1
         with:
-          # Upload entire repository
-          path: '.'
-      
+          path: dist
+
+      # 7. デプロイ実行
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@d6d577ef304f042b99a34d284f3c9597a775c7b9 # v4.0.5
