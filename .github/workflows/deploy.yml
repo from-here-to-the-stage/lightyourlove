@@ -22,26 +22,23 @@ jobs:
       url:  ${{ steps.deployment.outputs.page_url }}
 
     steps:
-      # 1. チェックアウト
       - name: Checkout
         uses: actions/checkout@v4
 
-      # 2. SITE_URL 決定 (元のロジックを保持)
       - name: Resolve SITE_URL
         id: site
         env:
           SITE_URL_VAR: ${{ vars.SITE_URL }}
           GITHUB_REPOSITORY: ${{ github.repository }}
         run: |
-          if [ -n "$SITE_URL_VAR" ]; then
-            echo "url=$SITE_URL_VAR" >> $GITHUB_OUTPUT
-          else
+          if [ -z "$SITE_URL_VAR" ]; then
             OWNER=$(echo $GITHUB_REPOSITORY | cut -d'/' -f1)
             REPO=$(echo $GITHUB_REPOSITORY | cut -d'/' -f2)
             echo "url=https://$OWNER.github.io/$REPO" >> $GITHUB_OUTPUT
+          else
+            echo "url=$SITE_URL_VAR" >> $GITHUB_OUTPUT
           fi
 
-      # 3. ビルド環境準備と置換処理
       - name: Build
         env:
           GA4_ID:     ${{ secrets.GA4_ID }}
@@ -54,64 +51,54 @@ jobs:
           cp -r * dist/ 2>/dev/null || true
           rm -rf dist/dist dist/.git dist/.github
 
-          # 🚨 sed エラー回避: 変数が空の場合でもエラーにならないようガードを強化
-          # 231行のオリジナルのロジックに基づき、正確に置換します
+          # 🚨 地獄を終わらせる安全な sed の実行方法
+          # 's|検索|置換|g' の形式を崩さないよう、シェル変数を引用符で厳重に囲みます。
           
-          # GA4_ID
-          G_ID="${GA4_ID:-G-XXXXXXXXXX}"
-          sed -i "s|%%GA4_ID%%|${G_ID}|g" dist/index.html
+          # GA4_ID の置換
+          sed -i "s|%%GA4_ID%%|${GA4_ID:-G-XXXXXXXXXX}|g" dist/index.html
           
-          # SITE_URL
-          S_URL="${SITE_URL:-https://localhost}"
-          sed -i "s|%%SITE_URL%%|${S_URL}|g" dist/index.html
+          # SITE_URL の置換
+          sed -i "s|%%SITE_URL%%|${SITE_URL:-https://localhost}|g" dist/index.html
           
-          # WORKER_URL
-          W_URL="${WORKER_URL:-#}"
-          sed -i "s|%%WORKER_URL%%|${W_URL}|g" dist/index.html
+          # WORKER_URL の置換
+          sed -i "s|%%WORKER_URL%%|${WORKER_URL:-#}|g" dist/index.html
           
-          # GAS_URL
-          GS_URL="${GAS_URL:-#}"
-          sed -i "s|%%GAS_URL%%|${GS_URL}|g" dist/index.html
+          # GAS_URL の置換
+          sed -i "s|%%GAS_URL%%|${GAS_URL:-#}|g" dist/index.html
           
-          # GA4_SCRIPT (コメント形式)
-          GA4_SCRIPT="<script async src='https://www.googletagmanager.com/gtag/js?id=${G_ID}'></script>"
-          sed -i "s||${GA4_SCRIPT}|g" dist/index.html
+          # GA4_SCRIPT 置換
+          GA4_TAG="<script async src='https://www.googletagmanager.com/gtag/js?id=${GA4_ID:-G-XXXXXXXXXX}'></script>"
+          sed -i "s||${GA4_TAG}|g" dist/index.html
 
-          # 4. HMAC署名用のトークン生成 (Daily)
+          # 4. HMAC署名 (SIGN_KEYが空でもopensslがエラーにならないよう処理)
           DATE=$(date +%Y-%m-%d)
-          if [ -z "$SIGN_KEY" ]; then
-            echo "Warning: SIGN_KEY is empty. Using dummy for build."
-            DAILY_TOKEN="offline-mode-token"
+          if [ -n "$SIGN_KEY" ]; then
+            # stdoutのみを取得する安全なパイプ
+            DAILY_TOKEN=$(echo -n "${SIGN_KEY}${DATE}" | openssl dgst -sha256 -hex | awk '{print $NF}')
           else
-            DAILY_TOKEN=$(echo -n "${SIGN_KEY}${DATE}" | openssl dgst -sha256 -hex | sed 's/^.* //')
+            DAILY_TOKEN="offline-mode-token"
           fi
           sed -i "s|%%DAILY_TOKEN%%|${DAILY_TOKEN}|g" dist/index.html
 
-      # 5. セキュリティ監査 (堅牢性の維持)
       - name: Security Audit
         env:
           SIGN_KEY: ${{ secrets.SIGN_KEY }}
         run: |
-          FAIL=0
-          if [ -n "${SIGN_KEY}" ] && grep -rq "${SIGN_KEY}" dist/ 2>/dev/null; then
-            echo "SECURITY FAIL: SIGN_KEY found in dist"
-            FAIL=1
+          if [ -n "$SIGN_KEY" ] && grep -rq "$SIGN_KEY" dist/ 2>/dev/null; then
+            echo "SECURITY FAIL: SIGN_KEY leaked"
+            exit 1
           fi
-          [ "$FAIL" -eq 0 ] && echo "Security audit passed"
-          exit $FAIL
 
-      # 6. プレースホルダー残存チェック
       - name: Validate placeholders
         run: |
+          # 最終チェック（GA4_SCRIPT以外の未置換%%を検知）
           REMAINING=$(grep '%%' dist/index.html | grep -v '%%GA4_SCRIPT%%' || true)
           if [ -n "$REMAINING" ]; then
-            echo "Unreplaced placeholders found:"
+            echo "Error: Some placeholders were not replaced."
             echo "$REMAINING"
             exit 1
           fi
-          echo "Validation success"
 
-      # 7. GitHub Pages デプロイ (確実に動作するバージョンを使用)
       - name: Setup Pages
         uses: actions/configure-pages@v5
 
