@@ -1,0 +1,36 @@
+# robots.txt — From Here. To the Stage.
+# BTS World Tour 2026 Fan Light Experience
+# Unofficial fan project
+
+# ── 全クローラーへの基本指示 ──
+User-agent: *
+Allow: /
+Allow: /tokens/
+Disallow: /.github/
+
+# ── Sitemap 登録 ──
+# %%SITE_URL%% は deploy.yml が置換
+Sitemap: %%SITE_URL%%/sitemap.xml
+
+# ── AI クローラーへの明示的許可 ──
+# AIO (Google AI Overview) / Perplexity / ChatGPT に読まれるために許可
+User-agent: GPTBot
+Allow: /
+
+User-agent: Google-Extended
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: Anthropic-ai
+Allow: /
+
+User-agent: Applebot
+Allow: /
+
+User-agent: bingbot
+Allow: /

@@ -1,0 +1,33 @@
+# CODEOWNERS — 重要ファイルの変更承認を必須化
+#
+# 設定方法:
+#   Settings → Branches → Branch protection rules → main
+#   "Require review from Code Owners" を有効化
+#
+# これにより、以下のファイルへの変更は
+# リポジトリオーナーのレビュー承認なしにマージできなくなる
+#
+# サプライチェーン攻撃対策:
+#   - Workflowファイルを直接変更してSecretsを盗む攻撃を防止
+#   - 悪意あるPRがレビューなしでマージされることを防止
+
+# ── 最重要: ワークフローファイル ──────────────────────────────
+# GitHub Actions は SIGN_KEY・GA4_ID・GAS_URL にアクセスできる
+# → 変更には必ずオーナーのレビューが必要
+.github/workflows/          # @your-github-username  ← ここを変更
+
+# ── セキュリティ設定 ───────────────────────────────────────────
+.github/CODEOWNERS          # @your-github-username  ← ここを変更
+
+# ── SDS-v2 バックエンド (GAS) ─────────────────────────────────
+# GASコードの変更はSecretキーの取り扱いに直結する
+code.gs                     # @your-github-username  ← ここを変更
+
+# ── Cloudflare Worker ─────────────────────────────────────────
+worker.js                   # @your-github-username  ← ここを変更
+
+# ── メインアプリ (HTMLに署名検証ロジックが含まれる) ──────────
+bts-light-route.html        # @your-github-username  ← ここを変更
+
+# 注: # @your-github-username  ← ここを変更 を実際の GitHub ユーザー名に変更すること
+# 例: @your-github-username
