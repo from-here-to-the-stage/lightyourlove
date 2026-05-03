@@ -82,6 +82,8 @@ jobs:
           GAS_URL:    ${{ secrets.GAS_URL }}
           WORKER_URL: ${{ secrets.WORKER_URL }}
           SITE_URL:   ${{ steps.site.outputs.url }}
+          PYTHONUTF8: '1'
+          PYTHONIOENCODING: utf-8
         run: |
           python3 - <<'PYEOF'
           import os, re
