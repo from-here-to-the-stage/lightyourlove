@@ -73,12 +73,12 @@ function safeClearElement(el) {
 // ════════════════════════════════════════════════
 const MEMBERS=[
   {id:'rm',    name:'RM',     jp:'RM',    color:'#4A90D9',rgb:'74,144,217'},
-  {id:'jin',   name:'JIN',    jp:'ジン',  color:'#FF69B4',rgb:'255,105,180'},
+  {id:'jin',   name:'Jin',    jp:'ジン',  color:'#FF69B4',rgb:'255,105,180'},
   {id:'suga',  name:'SUGA',   jp:'SUGA',  color:'#9BA4B8',rgb:'155,164,184'},
-  {id:'jhope', name:'J-HOPE', jp:'J-HOPE',color:'#FF6B35',rgb:'255,107,53'},
-  {id:'jimin', name:'JIMIN',  jp:'ジミン',color:'#EAC130',rgb:'234,193,48'},
+  {id:'jhope', name:'j-hope', jp:'J-HOPE',color:'#FF6B35',rgb:'255,107,53'},
+  {id:'jimin', name:'Jimin',  jp:'ジミン',color:'#EAC130',rgb:'234,193,48'},
   {id:'v',     name:'V',      jp:'V',     color:'#3DC98A',rgb:'61,201,138'},
-  {id:'jk',    name:'JK',     jp:'JK',    color:'#9B72F0',rgb:'155,114,240'},
+  {id:'jk',    name:'Jung Kook', jp:'JK', color:'#9B72F0',rgb:'155,114,240'},
 ];
 
 // ════════════════════════════════════════════════
@@ -446,6 +446,14 @@ function applyLangToCards(){
   document.querySelectorAll('.txt-en').forEach(el=>{
     if(el) el.style.display=isEn?'':'none';
   });
+  // スケジュールカードタグ（済 / 次回公演 / PAST / NEXT）
+  document.querySelectorAll('.sc-tag[data-jp]').forEach(el=>{
+    el.textContent = isEn ? el.dataset.en : el.dataset.jp;
+  });
+  // メンバーボタン名（EN時はローマ字表記）
+  document.querySelectorAll('[data-name-jp]').forEach(el=>{
+    el.textContent = isEn ? el.dataset.nameEn : el.dataset.nameJp;
+  });
 }
 function toggleLang(){
   lang = lang==='jp'?'en':'jp';
@@ -550,7 +558,7 @@ function initCards(){
       const tagCol=isNext?'var(--purple)':'var(--dim)';
       slide.innerHTML=`<div class="scard ${v.status}${v.isTBA?' tba':''}${isSent(v)?' show-sent':''}" id="card${i}" style="border-color:${borderCol};">
         <div class="sc-num" style="font-size:11px;color:var(--dim);letter-spacing:1px;margin-bottom:5px;">${String(i+1).padStart(2,'0')} · ${v.country}</div>
-        <div class="sc-tag" id="ctag${i}" style="font-size:11px;font-weight:700;letter-spacing:1px;margin-bottom:5px;color:${tagCol};">${tagJP}</div>
+        <div class="sc-tag" id="ctag${i}" data-jp="${tagJP}" data-en="${tagEN}" style="font-size:11px;font-weight:700;letter-spacing:1px;margin-bottom:5px;color:${tagCol};">${lang==='en'?tagEN:tagJP}</div>
         <div class="sc-city" style="font-size:15px;font-weight:800;line-height:1.2;margin-bottom:3px;font-family:'Chakra Petch',sans-serif;">${v.city}</div>
         <div class="sc-venue" style="font-size:11px;color:var(--dim);line-height:1.4;margin-bottom:5px;">${v.venue}</div>
         <div style="font-size:12px;color:var(--text2);font-weight:600;margin-bottom:4px;">
@@ -1031,7 +1039,7 @@ function initMemberSel(){
       btn.className = 'mbtn' + (m.id===activeMember.id?' sel':'');
       btn.style.setProperty('--mc', m.color);
       btn.style.setProperty('--mr', m.rgb);
-      btn.innerHTML = `<div class="mbtn-dot"></div><div class="mbtn-name">${m.jp||m.name}</div>`;
+      btn.innerHTML = `<div class="mbtn-dot"></div><div class="mbtn-name" data-name-jp="${m.jp||m.name}" data-name-en="${m.name}">${lang==='en'?m.name:(m.jp||m.name)}</div>`;
       btn.addEventListener('click',()=>{
         if(isSent(targetStop)) return;
         activeMember = m;
@@ -1091,7 +1099,7 @@ function initDailyGrid(){
       const isLocked   = todaySelected !== null && !isSelected;
       btn.className = 'dmb' + (isSelected ? ' checked' : '') + (isLocked ? ' dmb-locked' : '');
 
-      btn.innerHTML = `<div class="dmb-dot"></div><div class="dmb-name">${m.jp||m.name}</div>`;
+      btn.innerHTML = `<div class="dmb-dot"></div><div class="dmb-name" data-name-jp="${m.jp||m.name}" data-name-en="${m.name}">${lang==='en'?m.name:(m.jp||m.name)}</div>`;
 
       btn.addEventListener('click', () => {
         const result = checkInMember(m.id);
@@ -1297,7 +1305,7 @@ function showChargeEffect(member){
 
     ov.classList.add('on');
     drawChargeParticles(canvas, member.color);
-    playChargeSound();
+    // playChargeSound(); // 音を削除（無音）
 
     setTimeout(()=>{
       ov.classList.remove('on');
@@ -1683,17 +1691,32 @@ function renderTitleZone(){
 function refreshStatusBar(){
   try {
     const pwr=Math.round(getPower());
-    setText('sbStreak', powerData.streak+'🔥');
-    setText('sbPower', pwr);
+    document.documentElement.style.setProperty('--power',pwr);
     
     const powerFill = getEl('powerFill');
     if(powerFill) powerFill.style.width=pwr+'%';
-    
     const powerValText = getEl('powerValText');
     if(powerValText) powerValText.textContent=pwr+' / 100';
-    
     setText('streakNum', powerData.streak);
-    document.documentElement.style.setProperty('--power',pwr);
+
+    // OVERVIEW: 次回公演・開演まで をリアルタイム更新
+    const nxt = findNextTarget ? findNextTarget() : targetStop;
+    const ncEl = getEl('sbNextCity');
+    const ctEl = getEl('sbCountdown');
+    if(ncEl && nxt){
+      ncEl.textContent = nxt.city + (nxt.country ? ', '+nxt.country : '');
+    }
+    if(ctEl && nxt && nxt.st){
+      const diff = new Date(nxt.st) - new Date();
+      ctEl.textContent = diff > 0 ? fmt(diff) : (lang==='jp' ? '開演中' : 'LIVE NOW');
+    } else if(ctEl){
+      ctEl.textContent = '—';
+    }
+
+    // 送信数
+    const starsEl = getEl('sbStars');
+    if(starsEl) starsEl.textContent = Object.keys(sentShows||{}).length;
+
     renderTitleZone();
   } catch (e) {
     console.warn('[StatusBar] Refresh failed:', e);
@@ -2032,6 +2055,17 @@ function updateCountdown(){
 
 function updateShowtime(){
   try {
+    // OVERVIEW sbCountdown もリアルタイム更新
+    const _nxt = (typeof findNextTarget==='function') ? findNextTarget() : targetStop;
+    if(_nxt){
+      const ncEl = getEl('sbNextCity');
+      const ctEl = getEl('sbCountdown');
+      if(ncEl) ncEl.textContent = _nxt.city;
+      if(ctEl && _nxt.st){
+        const _diff = new Date(_nxt.st) - new Date();
+        ctEl.textContent = _diff > 0 ? fmt(_diff) : (lang==='jp'?'開演中':'LIVE NOW');
+      }
+    }
     const _fresh = findNextTarget();
     if(_fresh && _fresh !== targetStop && !demoMode){
       const _fi = TOUR.indexOf(_fresh);
