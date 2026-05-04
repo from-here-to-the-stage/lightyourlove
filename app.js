@@ -900,30 +900,80 @@ function updateCompassFromUser(){
 
 function requestGeo(){
   try {
+    const btn = getEl('geoBtn');
+    const lbl = getEl('compassFromLabel');
+
+    // ① Geolocation API 非対応
     if(!navigator.geolocation){
-      const l=getEl('compassFromLabel');
-      if(l) l.textContent=lang==='jp'?'位置情報非対応':'Not supported';
+      if(lbl) lbl.textContent = lang==='jp' ? '位置情報非対応' : 'Not supported';
       return;
     }
-    const l=getEl('compassFromLabel');
-    if(l) l.textContent=lang==='jp'?'位置情報を取得中…':'Locating…';
-    navigator.geolocation.getCurrentPosition(pos=>{
-      userLat=pos.coords.latitude;userLng=pos.coords.longitude;geoGranted=true;
-      localStorage.setItem(GEO_KEY,JSON.stringify({lat:userLat,lng:userLng}));
-      updateCompassFromUser();
-      const geoBtn = getEl('geoBtn');
-      if(geoBtn){
-        geoBtn.style.borderColor='var(--green)';
-        geoBtn.style.color='var(--green)';
-      }
-    },()=>{
-      geoGranted=false;
-      const fi=TOUR.findIndex(x=>x===targetStop);
-      if(l) l.textContent=lang==='jp'?`${routeFrom.city} → ${targetStop.city} (都市間)`:`${routeFrom.city} → ${targetStop.city} (city-to-city)`;
-      setRoute(routeFrom,targetStop);
-    },{timeout:8000,maximumAge:300000});
+
+    // ② ボタンを「取得中」状態にする（視覚フィードバック）
+    if(btn){
+      btn.disabled = true;
+      btn.style.opacity = '0.6';
+      btn.innerHTML = lang==='jp'
+        ? '<span>📍 取得中…</span>'
+        : '<span>📍 Locating…</span>';
+    }
+    if(lbl) lbl.textContent = lang==='jp' ? '位置情報を取得中…' : 'Locating…';
+
+    // ③ HTTPS必須チェック（GitHub Pages は HTTPS なので通常OK）
+    if(location.protocol !== 'https:' && location.hostname !== 'localhost'){
+      if(lbl) lbl.textContent = lang==='jp' ? 'HTTPS環境が必要です' : 'Requires HTTPS';
+      if(btn){ btn.disabled=false; btn.style.opacity='1'; }
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      // ④ 成功
+      pos => {
+        userLat = pos.coords.latitude;
+        userLng = pos.coords.longitude;
+        geoGranted = true;
+        try { localStorage.setItem(GEO_KEY, JSON.stringify({lat:userLat, lng:userLng})); } catch(_){}
+        updateCompassFromUser();
+        if(btn){
+          btn.disabled = false;
+          btn.style.opacity = '1';
+          btn.style.borderColor = 'var(--green)';
+          btn.style.color = 'var(--green)';
+          btn.innerHTML = lang==='jp'
+            ? '<span>📍 現在地で測定</span>'
+            : '<span>📍 MY LOCATION ✓</span>';
+        }
+      },
+      // ⑤ 失敗（ユーザーが拒否 or タイムアウト）
+      err => {
+        geoGranted = false;
+        const msg = err.code === 1
+          ? (lang==='jp' ? '位置情報の許可が必要です' : 'Location permission denied')
+          : (lang==='jp' ? '位置情報を取得できません' : 'Could not get location');
+        if(lbl) lbl.textContent = msg;
+        if(btn){
+          btn.disabled = false;
+          btn.style.opacity = '1';
+          btn.style.borderColor = 'var(--red)';
+          btn.style.color = 'var(--red)';
+          btn.innerHTML = '<span class="txt-jp">📍 現在地で測定</span><span class="txt-en">📍 USE MY LOCATION</span>';
+          // 2秒後に元に戻す
+          setTimeout(()=>{
+            if(btn){
+              btn.style.borderColor='';
+              btn.style.color='';
+              btn.innerHTML='<span class="txt-jp">📍 現在地で測定</span><span class="txt-en">📍 USE MY LOCATION</span>';
+            }
+          }, 2000);
+        }
+        setRoute(routeFrom, targetStop);
+      },
+      {timeout: 10000, maximumAge: 300000, enableHighAccuracy: false}
+    );
   } catch (e) {
     console.warn('[Geo] requestGeo failed:', e);
+    const btn = getEl('geoBtn');
+    if(btn){ btn.disabled=false; btn.style.opacity='1'; }
   }
 }
 
@@ -2045,9 +2095,21 @@ function fmt(ms){
 
 function updateCountdown(){
   try {
-    const diff=new Date('2026-04-09T19:00:00+09:00')-new Date();
-    const s=fmt(Math.max(diff,0));
+    // targetStop（直近公演）を使って動的に計算
+    const nxt = (typeof findNextTarget === 'function') ? findNextTarget() : targetStop;
+    if(!nxt || !nxt.st){
+      setText('mainCnt', '—');
+      return;
+    }
+    const diff = new Date(nxt.st) - new Date();
+    const s = fmt(Math.max(diff, 0));
     setText('mainCnt', s);
+
+    // ラベルも次回公演の都市名に動的更新
+    const jpLbl = document.getElementById('mainCntLblJP');
+    const enLbl = document.getElementById('mainCntLblEN');
+    if(jpLbl) jpLbl.textContent = nxt.city + 'まで';
+    if(enLbl) enLbl.textContent = 'TO ' + nxt.city.toUpperCase();
   } catch (e) {
     console.warn('[Countdown] Update failed:', e);
   }
