@@ -729,6 +729,7 @@ function resizeMap(){
     const r = parent.getBoundingClientRect();
     mc.width  = r.width  > 0 ? r.width  : (parent.offsetWidth  || 358);
     mc.height = 210;
+    if(mc._continentCache) delete mc._continentCache; // サイズ変更でキャッシュ無効化
     drawMap();
   } catch (e) {
     console.warn('[Map] Resize failed:', e);
@@ -1285,7 +1286,23 @@ function drawMap(){
       mctx.moveTo(x,0);mctx.lineTo(x,H);mctx.stroke();
     }
 
+    // 大陸は静的なので初回のみ描画してキャッシュ（パフォーマンス改善）
+  if(!mc._continentCache || mc._continentCache.w!==W || mc._continentCache.h!==H){
+    const oc = document.createElement('canvas');
+    oc.width=W; oc.height=H;
+    const octx = oc.getContext('2d');
+    // 海の背景
+    const obg = octx.createLinearGradient(0,0,W,H);
+    obg.addColorStop(0,'#E8EDFF'); obg.addColorStop(0.5,'#DDE4FA'); obg.addColorStop(1,'#D8E2F8');
+    octx.fillStyle=obg; octx.fillRect(0,0,W,H);
+    // 大陸を offscreen に描画
+    const _mctx_bak = mctx;
+    mctx = octx;
     drawContinents(W,H);
+    mctx = _mctx_bak;
+    mc._continentCache = {canvas:oc, w:W, h:H};
+  }
+  mctx.drawImage(mc._continentCache.canvas, 0, 0);
 
     BGCIT.forEach(([la,lo])=>{
       const[x,y]=ll(la,lo,W,H);
@@ -1360,7 +1377,7 @@ let lastMap=0;
 function loopMap(ts){
   try {
     if(!mc||!mctx){requestAnimationFrame(loopMap);return;}
-    if(ts-lastMap>60){
+    if(ts-lastMap>100){  // 約10fps: 大陸キャッシュ化により十分
       planeT+=.005*planeDir;
       if(planeT>=1){planeT=1;planeDir=-1;}
       if(planeT<=0){planeT=0;planeDir=1;}
