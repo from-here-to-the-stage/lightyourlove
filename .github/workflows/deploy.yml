@@ -78,7 +78,7 @@ jobs:
 
       - name: Inject variables
         env:
-          GA4_ID:     ${{ secrets.GA4_TRACKING_ID }}
+          GA4_ID:     ${{ secrets.GA4_ID }}
           GAS_URL:    ${{ secrets.GAS_URL }}
           WORKER_URL: ${{ secrets.WORKER_URL }}
           SITE_URL:   ${{ steps.site.outputs.url }}
