@@ -88,7 +88,7 @@ jobs:
           python3 - <<'PYEOF'
           import os, re
 
-          ga4_id     = os.environ.get('GA4_ID',    '').strip()
+          ga4_id     = os.environ.get('GA4_TRACKING_ID',    '').strip()
           gas_url    = os.environ.get('GAS_URL',   '').strip()
           worker_url = os.environ.get('WORKER_URL','').strip()
           site_url   = os.environ.get('SITE_URL',  '').strip()
