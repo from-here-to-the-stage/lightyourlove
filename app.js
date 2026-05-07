@@ -729,7 +729,7 @@ function resizeMap(){
     const r = parent.getBoundingClientRect();
     mc.width  = r.width  > 0 ? r.width  : (parent.offsetWidth  || 358);
     mc.height = 210;
-    if(mc._continentCache) delete mc._continentCache; // サイズ変更でキャッシュ無効化
+    if(mc._bgCache) delete mc._bgCache; // サイズ変更でキャッシュ無効化
     drawMap();
   } catch (e) {
     console.warn('[Map] Resize failed:', e);
@@ -1265,89 +1265,124 @@ function drawContinents(W,H){
 function drawMap(){
   try {
     if(!mc||!mctx) return;
-    const W=mc.width,H=mc.height;
+    const W=mc.width, H=mc.height;
     if(W===0||H===0) return;
+
+    // ── 静的レイヤー: キャッシュ（背景・グリッド・大陸）──────────
+    // サイズ変更時またはキャッシュがない場合のみ再描画
+    if(!mc._bgCache || mc._bgCache.w!==W || mc._bgCache.h!==H){
+      const oc   = document.createElement('canvas');
+      oc.width=W; oc.height=H;
+      const octx = oc.getContext('2d');
+
+      // 海背景
+      const bg = octx.createLinearGradient(0,0,W,H);
+      bg.addColorStop(0,'#E8EDFF');
+      bg.addColorStop(0.5,'#DDE4FA');
+      bg.addColorStop(1,'#D8E2F8');
+      octx.fillStyle=bg; octx.fillRect(0,0,W,H);
+
+      // グリッド（経緯線）
+      octx.setLineDash([2,4]);
+      octx.strokeStyle='rgba(91,63,217,.08)'; octx.lineWidth=.5;
+      for(let la=-60;la<=90;la+=30){
+        octx.beginPath();
+        const[,y]=ll(la,0,W,H);
+        octx.moveTo(0,y); octx.lineTo(W,y); octx.stroke();
+      }
+      for(let lo=-180;lo<=180;lo+=30){
+        octx.beginPath();
+        const[x]=ll(0,lo,W,H);
+        octx.moveTo(x,0); octx.lineTo(x,H); octx.stroke();
+      }
+      // 赤道・本初子午線を強調
+      octx.setLineDash([]);
+      octx.strokeStyle='rgba(91,63,217,.14)'; octx.lineWidth=.7;
+      octx.beginPath();
+      const[,eq]=ll(0,0,W,H); octx.moveTo(0,eq); octx.lineTo(W,eq); octx.stroke();
+      octx.beginPath();
+      const[pm]=ll(0,0,W,H); octx.moveTo(pm,0); octx.lineTo(pm,H); octx.stroke();
+      octx.setLineDash([]);
+
+      // 大陸（一時的にmctxをoctxに差し替えて描画）
+      const _bak=mctx; mctx=octx;
+      drawContinents(W,H);
+      mctx=_bak;
+
+      mc._bgCache={canvas:oc, w:W, h:H};
+    }
+    // キャッシュを貼る（毎フレーム: 1回のdrawImageのみ）
     mctx.clearRect(0,0,W,H);
+    mctx.drawImage(mc._bgCache.canvas,0,0);
 
-    const bg=mctx.createLinearGradient(0,0,W,H);
-    bg.addColorStop(0,'#EEF2FF');
-    bg.addColorStop(1,'#E8ECF8');
-    mctx.fillStyle=bg; mctx.fillRect(0,0,W,H);
+    // ── 動的レイヤー: 毎フレーム描画 ──────────────────────────────
 
-    mctx.strokeStyle='rgba(91,63,217,.10)'; mctx.lineWidth=.6;
-    for(let la=-60;la<=90;la+=30){
-      mctx.beginPath();
-      const[,y]=ll(la,0,W,H);
-      mctx.moveTo(0,y);mctx.lineTo(W,y);mctx.stroke();
-    }
-    for(let lo=-180;lo<=180;lo+=30){
-      mctx.beginPath();
-      const[x]=ll(0,lo,W,H);
-      mctx.moveTo(x,0);mctx.lineTo(x,H);mctx.stroke();
-    }
-
-    // 大陸は静的なので初回のみ描画してキャッシュ（パフォーマンス改善）
-  if(!mc._continentCache || mc._continentCache.w!==W || mc._continentCache.h!==H){
-    const oc = document.createElement('canvas');
-    oc.width=W; oc.height=H;
-    const octx = oc.getContext('2d');
-    // 海の背景
-    const obg = octx.createLinearGradient(0,0,W,H);
-    obg.addColorStop(0,'#E8EDFF'); obg.addColorStop(0.5,'#DDE4FA'); obg.addColorStop(1,'#D8E2F8');
-    octx.fillStyle=obg; octx.fillRect(0,0,W,H);
-    // 大陸を offscreen に描画
-    const _mctx_bak = mctx;
-    mctx = octx;
-    drawContinents(W,H);
-    mctx = _mctx_bak;
-    mc._continentCache = {canvas:oc, w:W, h:H};
-  }
-  mctx.drawImage(mc._continentCache.canvas, 0, 0);
-
+    // 主要都市ドット
     BGCIT.forEach(([la,lo])=>{
       const[x,y]=ll(la,lo,W,H);
-      if(x<0||x>W||y<0||y>H)return;
-      mctx.fillStyle='rgba(91,63,217,.30)';
-      mctx.beginPath();mctx.arc(x,y,1.4,0,Math.PI*2);mctx.fill();
+      if(x<0||x>W||y<0||y>H) return;
+      mctx.fillStyle='rgba(91,63,217,.28)';
+      mctx.beginPath(); mctx.arc(x,y,1.4,0,Math.PI*2); mctx.fill();
     });
 
+    // ツアー全体の航路（薄い破線）
     for(let i=0;i<TOUR.length-1;i++){
       const pts2=gc(TOUR[i].lat,TOUR[i].lng,TOUR[i+1].lat,TOUR[i+1].lng,60);
       const s2=[];let c2=[];
-      pts2.forEach(([la,lo],j)=>{if(j>0&&Math.abs(lo-pts2[j-1][1])>180){s2.push(c2);c2=[];}c2.push([la,lo]);});s2.push(c2);
+      pts2.forEach(([la,lo],j)=>{
+        if(j>0&&Math.abs(lo-pts2[j-1][1])>180){s2.push(c2);c2=[];}
+        c2.push([la,lo]);
+      });
+      s2.push(c2);
       s2.forEach(seg=>{
-        if(seg.length<2)return;
-        mctx.beginPath();let ff=true;
-        seg.forEach(([la,lo])=>{const[x,y]=ll(la,lo,W,H);if(ff){mctx.moveTo(x,y);ff=false;}else mctx.lineTo(x,y);});
-        mctx.strokeStyle='rgba(91,63,217,.18)';mctx.lineWidth=.7;mctx.setLineDash([2,8]);mctx.stroke();mctx.setLineDash([]);
+        if(seg.length<2) return;
+        mctx.beginPath(); let ff=true;
+        seg.forEach(([la,lo])=>{
+          const[x,y]=ll(la,lo,W,H);
+          if(ff){mctx.moveTo(x,y);ff=false;} else mctx.lineTo(x,y);
+        });
+        mctx.strokeStyle='rgba(91,63,217,.14)'; mctx.lineWidth=.6;
+        mctx.setLineDash([2,8]); mctx.stroke(); mctx.setLineDash([]);
       });
     }
 
-    const pwr=getPower(),lw=1.4+(pwr/100)*2,glow=6+(pwr/100)*12;
+    // アクティブ航路（パワー強化）
+    const pwr=getPower(), lw=1.4+(pwr/100)*2, glow=6+(pwr/100)*12;
     const pts=gc(routeFrom.lat,routeFrom.lng,routeTo.lat,routeTo.lng,120);
     const segs=[];let cur=[];
-    pts.forEach(([la,lo],j)=>{if(j>0&&Math.abs(lo-pts[j-1][1])>180){segs.push(cur);cur=[];}cur.push([la,lo]);});segs.push(cur);
+    pts.forEach(([la,lo],j)=>{
+      if(j>0&&Math.abs(lo-pts[j-1][1])>180){segs.push(cur);cur=[];}
+      cur.push([la,lo]);
+    });
+    segs.push(cur);
     segs.forEach(seg=>{
-      if(seg.length<2)return;mctx.beginPath();let ff=true;
-      seg.forEach(([la,lo])=>{const[x,y]=ll(la,lo,W,H);if(ff){mctx.moveTo(x,y);ff=false;}else mctx.lineTo(x,y);});
-      mctx.shadowBlur=glow;mctx.shadowColor=activeMember.color;
-      mctx.strokeStyle=activeMember.color;mctx.lineWidth=lw;mctx.setLineDash([5,5]);mctx.stroke();
-      mctx.setLineDash([]);mctx.shadowBlur=0;
+      if(seg.length<2) return;
+      mctx.beginPath(); let ff=true;
+      seg.forEach(([la,lo])=>{
+        const[x,y]=ll(la,lo,W,H);
+        if(ff){mctx.moveTo(x,y);ff=false;} else mctx.lineTo(x,y);
+      });
+      mctx.shadowBlur=glow; mctx.shadowColor=activeMember.color;
+      mctx.strokeStyle=activeMember.color;
+      mctx.lineWidth=lw; mctx.setLineDash([5,5]);
+      mctx.stroke(); mctx.setLineDash([]); mctx.shadowBlur=0;
     });
 
+    // 公演地ドット
     TOUR.forEach(v=>{
       const[x,y]=ll(v.lat,v.lng,W,H);
-      if(x<3||x>W-3||y<3||y>H+3)return;
-      const isTgt=v===targetStop,wasSent=isSent(v);
-      const isNext=v.status==='next';
-      const col=isNext?'#5B3FD9':isTgt?activeMember.color:wasSent?'#16A34A':'rgba(91,63,217,.35)';
+      if(x<3||x>W-3||y<3||y>H-3) return;
+      const isTgt=v===targetStop, wasSent=isSent(v), isNext=v.status==='next';
+      const col=isNext?'#5B3FD9':isTgt?activeMember.color:wasSent?'#16A34A':'rgba(91,63,217,.38)';
       if(isNext||isTgt){
-        mctx.beginPath();mctx.arc(x,y,7+Math.sin(Date.now()/600)*1.5,0,Math.PI*2);
-        mctx.strokeStyle=col+'66';mctx.lineWidth=1.5;mctx.stroke();
+        mctx.beginPath();
+        mctx.arc(x,y,7+Math.sin(Date.now()/600)*1.5,0,Math.PI*2);
+        mctx.strokeStyle=col+'66'; mctx.lineWidth=1.5; mctx.stroke();
       }
-      mctx.shadowBlur=isNext?12:isTgt?8:0;mctx.shadowColor=col;
-      mctx.fillStyle=col;
-      mctx.beginPath();mctx.arc(x,y,isNext?4.5:isTgt?4:2,0,Math.PI*2);mctx.fill();
+      mctx.shadowBlur=isNext?12:isTgt?8:0;
+      mctx.shadowColor=col; mctx.fillStyle=col;
+      mctx.beginPath();
+      mctx.arc(x,y,isNext?4.5:isTgt?4:2,0,Math.PI*2); mctx.fill();
       mctx.shadowBlur=0;
       if(isNext||isTgt){
         mctx.fillStyle=col;
@@ -1356,20 +1391,26 @@ function drawMap(){
       }
     });
 
+    // 飛行機アニメーション
     if(pts.length>1){
       const idx=Math.min(Math.floor(planeT*pts.length),pts.length-2);
-      const[pLa,pLo]=pts[idx];const[px,py]=ll(pLa,pLo,W,H);
-      if(px>=0&&px<=W&&py>=0&&py<=H){
+      const[pLa,pLo]=pts[idx];
+      const[px2,py2]=ll(pLa,pLo,W,H);
+      if(px2>=0&&px2<=W&&py2>=0&&py2<=H){
         const[nx,ny]=ll(pts[idx+1][0],pts[idx+1][1],W,H);
-        const ang=Math.atan2(ny-py,nx-px);
-        mctx.save();mctx.translate(px,py);mctx.rotate(ang);
-        mctx.shadowBlur=10;mctx.shadowColor=activeMember.color;mctx.fillStyle=activeMember.color;
-        mctx.beginPath();mctx.moveTo(9,0);mctx.lineTo(-3,-5);mctx.lineTo(-1,0);mctx.lineTo(-3,5);mctx.closePath();mctx.fill();
-        mctx.shadowBlur=0;mctx.restore();
+        const ang=Math.atan2(ny-py2,nx-px2);
+        mctx.save(); mctx.translate(px2,py2); mctx.rotate(ang);
+        mctx.shadowBlur=10; mctx.shadowColor=activeMember.color;
+        mctx.fillStyle=activeMember.color;
+        mctx.beginPath();
+        mctx.moveTo(9,0); mctx.lineTo(-3,-5);
+        mctx.lineTo(-1,0); mctx.lineTo(-3,5);
+        mctx.closePath(); mctx.fill();
+        mctx.shadowBlur=0; mctx.restore();
       }
     }
-  } catch (e) {
-    console.warn('[Map] Draw failed:', e);
+  } catch(e){
+    console.warn('[Map] drawMap failed:', e);
   }
 }
 
