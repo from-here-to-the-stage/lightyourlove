@@ -93,23 +93,29 @@ jobs:
           worker_url = os.environ.get('WORKER_URL','').strip()
           site_url   = os.environ.get('SITE_URL',  '').strip()
 
-          # GA4スクリプトブロックを生成
+          # ── GA4 スクリプトブロック生成（HTML専用）─────────────
+          # GDPR / EU 規制対応:
+          # gtag('consent','default',{analytics_storage:'denied'}) を config 前に設定し、
+          # ユーザーが同意するまで GA4 へのデータ送信をブロック（Cookie 書き込みも抑止）。
+          # 同意後は app.js の GA.grant() 内で gtag('consent','update',...) により
+          # granted に変更され、以降は自動ページビュー送信を含む全計測が有効化される。
           if ga4_id and not ga4_id.startswith('G-XXXXXXXXXX'):
               ga4_script = (
                   '<script async src="https://www.googletagmanager.com/gtag/js?id=' + ga4_id + '"></script>\n'
                   '<script>window.dataLayer=window.dataLayer||[];'
                   'function gtag(){dataLayer.push(arguments);}'
                   'gtag("js",new Date());'
-                  'gtag("config","' + ga4_id + '",{send_page_view:false});</script>'
+                  'gtag("consent","default",{analytics_storage:"denied"});'
+                  'gtag("config","' + ga4_id + '");</script>'
               )
               print('GA4 injected: ' + ga4_id[:6] + 'XXXXX')
           else:
               ga4_script = '<!-- GA4 not configured -->'
               print('GA4: not configured')
 
-          # 置換対象ファイル（%%プレースホルダーを含む全ファイル）
-          targets = ['dist/index.html', 'dist/app.js']
-          for path in targets:
+          # ── HTML ファイル（GA4スクリプト注入可）──────────────
+          html_targets = ['dist/index.html']
+          for path in html_targets:
               try:
                   with open(path, 'r', encoding='utf-8') as f:
                       content = f.read()
@@ -121,7 +127,26 @@ jobs:
                   content = content.replace('%%GA4_ID%%',     ga4_id or 'G-XXXXXXXXXX')
                   with open(path, 'w', encoding='utf-8') as f:
                       f.write(content)
-                  print('Processed: ' + path)
+                  print('Processed (HTML): ' + path)
+              except FileNotFoundError:
+                  print('Skipped (not found): ' + path)
+
+          # ── JS ファイル（GA4スクリプト注入禁止）──────────────
+          # JS 内に HTML タグを注入すると SyntaxError でアプリ全体が停止するため、
+          # %%GA4_SCRIPT%% は無害なコメントに置換。他のプレースホルダーのみ通常置換。
+          js_targets = ['dist/app.js', 'dist/tour-data.js']
+          for path in js_targets:
+              try:
+                  with open(path, 'r', encoding='utf-8') as f:
+                      content = f.read()
+                  content = content.replace('%%GA4_SCRIPT%%', '/* GA4_SCRIPT_PLACEHOLDER_REMOVED */')
+                  content = content.replace('%%SITE_URL%%',   site_url)
+                  content = content.replace('%%GAS_URL%%',    gas_url)
+                  content = content.replace('%%WORKER_URL%%', worker_url)
+                  content = content.replace('%%GA4_ID%%',     ga4_id or 'G-XXXXXXXXXX')
+                  with open(path, 'w', encoding='utf-8') as f:
+                      f.write(content)
+                  print('Processed (JS): ' + path)
               except FileNotFoundError:
                   print('Skipped (not found): ' + path)
 
@@ -175,13 +200,26 @@ jobs:
 
       - name: Validate placeholders replaced
         run: |
-          REMAINING=$(grep -o '%%[A-Z_]*%%' dist/index.html || true)
+          # dist/ 全体を再帰的に検索し、%%PLACEHOLDER%% の残存を検出
+          REMAINING=$(grep -ro '%%[A-Z_]*%%' dist/ || true)
           if [ -n "$REMAINING" ]; then
-            echo "Unreplaced placeholders:"
+            echo "Unreplaced placeholders found:"
             echo "$REMAINING"
             exit 1
           fi
-          echo "All placeholders replaced"
+          echo "All placeholders replaced successfully"
+
+      - name: Validate no HTML in JS
+        run: |
+          # JS ファイルに <script> 等の HTML タグが混入していないか検証。
+          # 混入すると SyntaxError でアプリ全体が停止するため、CI で確実に検出する。
+          HTML_IN_JS=$(grep -rE '<script|</script>' dist/ --include='*.js' 2>/dev/null || true)
+          if [ -n "$HTML_IN_JS" ]; then
+            echo "SECURITY FAIL: HTML tags found in JS files:"
+            echo "$HTML_IN_JS"
+            exit 1
+          fi
+          echo "JS files are HTML-tag free"
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
