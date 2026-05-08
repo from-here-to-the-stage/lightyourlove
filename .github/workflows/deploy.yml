@@ -150,6 +150,23 @@ jobs:
               except FileNotFoundError:
                   print('Skipped (not found): ' + path)
 
+          # ── その他のテキストファイル（GA4_SCRIPT はコメント化）────────
+          text_targets = ['dist/robots.txt', 'dist/sitemap.xml', 'dist/app.webmanifest']
+          for path in text_targets:
+              try:
+                  with open(path, 'r', encoding='utf-8') as f:
+                      content = f.read()
+                  content = content.replace('%%GA4_SCRIPT%%', '/* GA4_SCRIPT_PLACEHOLDER_REMOVED */')
+                  content = content.replace('%%SITE_URL%%',   site_url)
+                  content = content.replace('%%GAS_URL%%',    gas_url)
+                  content = content.replace('%%WORKER_URL%%', worker_url)
+                  content = content.replace('%%GA4_ID%%',     ga4_id or 'G-XXXXXXXXXX')
+                  with open(path, 'w', encoding='utf-8') as f:
+                      f.write(content)
+                  print('Processed (text): ' + path)
+              except FileNotFoundError:
+                  print('Skipped (not found): ' + path)
+
           print('SITE_URL: ' + site_url)
           print('GAS_URL: ' + ('set' if gas_url else 'not set'))
           print('WORKER_URL: ' + ('set' if worker_url else 'not set'))
