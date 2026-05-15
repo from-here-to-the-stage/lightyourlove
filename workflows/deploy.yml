@@ -1,0 +1,314 @@
+name: Deploy to GitHub Pages
+
+# ─────────────────────────────────────────────────────────────
+# 必要な Secrets / Variables
+#
+# Secrets (Settings > Secrets and variables > Actions > Secrets):
+#   SIGN_KEY   = openssl rand -hex 32   (必須)
+#   GA4_ID     = G-XXXXXXXXXX           (任意)
+#   GAS_URL    = https://...            (任意)
+#   WORKER_URL = https://...            (任意)
+#
+# Variables (Settings > Secrets and variables > Actions > Variables):
+#   SITE_URL   = https://from-here-to-the-stage.github.io/lightyourlove
+# ─────────────────────────────────────────────────────────────
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages:    write
+  id-token: write
+
+concurrency:
+  group:            pages
+  cancel-in-progress: true
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url:  ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Resolve SITE_URL
+        id: site
+        env:
+          SITE_URL_VAR:      ${{ vars.SITE_URL }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: |
+          if [ -n "${SITE_URL_VAR}" ]; then
+            SITE_URL="${SITE_URL_VAR%/}"
+          else
+            OWNER=$(echo "${GITHUB_REPOSITORY}" | cut -d'/' -f1 | tr '[:upper:]' '[:lower:]')
+            REPO=$(echo  "${GITHUB_REPOSITORY}" | cut -d'/' -f2)
+            SITE_URL="https://${OWNER}.github.io/${REPO}"
+          fi
+          echo "url=${SITE_URL}" >> "$GITHUB_OUTPUT"
+          echo "SITE_URL: ${SITE_URL}"
+
+      - name: Prepare dist
+        run: |
+          mkdir -p dist/tokens
+
+          # ── index.html ──────────────────────────────────────
+          if   [ -f "bts-light-route.html" ]; then cp bts-light-route.html dist/index.html
+          elif [ -f "index.html" ];           then cp index.html dist/index.html
+          fi
+
+          # ── 静的ファイル ─────────────────────────────────────
+          for f in robots.txt sitemap.xml app.webmanifest styles.css; do
+            [ -f "$f" ] && cp "$f" dist/
+          done
+
+          # ── ルート JavaScript ────────────────────────────────
+          [ -f "tour-data.js" ] && cp tour-data.js dist/
+          [ -f "app.js" ]       && cp app.js dist/
+
+          # ── ★ js/ サブディレクトリ（新設）─────────────────────
+          # utils/geo.js, config/map-config.js,
+          # renderer/map-renderer.js, data/cities.json,
+          # data/continents.json
+          if [ -d "js" ]; then
+            mkdir -p dist/js
+            cp -r js/. dist/js/
+            echo "Copied js/ → dist/js/"
+          fi
+
+          # ── ★ assets/ サブディレクトリ（新設）──────────────────
+          # assets/maps/world-base.png
+          if [ -d "assets" ]; then
+            mkdir -p dist/assets
+            cp -r assets/. dist/assets/
+            echo "Copied assets/ → dist/assets/"
+          fi
+
+          # ── PWA アイコン ─────────────────────────────────────
+          if [ -d "icons" ]; then
+            mkdir -p dist/icons
+            cp icons/*.png dist/icons/ 2>/dev/null || true
+            [ -f "icons/icon-192.png" ] && cp icons/icon-192.png dist/favicon.ico || true
+          fi
+
+          rm -rf dist/.github dist/.git
+
+      - name: Inject variables
+        env:
+          GA4_ID:     ${{ secrets.GA4_ID }}
+          GAS_URL:    ${{ secrets.GAS_URL }}
+          WORKER_URL: ${{ secrets.WORKER_URL }}
+          SITE_URL:   ${{ steps.site.outputs.url }}
+          PYTHONUTF8: '1'
+          PYTHONIOENCODING: utf-8
+        run: |
+          python3 - <<'PYEOF'
+          import os, re
+
+          ga4_id     = os.environ.get('GA4_ID',    '').strip()
+          gas_url    = os.environ.get('GAS_URL',   '').strip()
+          worker_url = os.environ.get('WORKER_URL','').strip()
+          site_url   = os.environ.get('SITE_URL',  '').strip()
+
+          # ── GA4 スクリプトブロック生成（HTML専用）─────────────
+          if ga4_id and not ga4_id.startswith('G-XXXXXXXXXX'):
+              ga4_script = (
+                  '<script async src="https://www.googletagmanager.com/gtag/js?id=' + ga4_id + '"></script>\n'
+                  '<script>window.dataLayer=window.dataLayer||[];'
+                  'function gtag(){dataLayer.push(arguments);}'
+                  'gtag("js",new Date());'
+                  'gtag("consent","default",{analytics_storage:"denied"});'
+                  'gtag("config","' + ga4_id + '");</script>'
+              )
+              print('GA4 injected: ' + ga4_id[:6] + 'XXXXX')
+          else:
+              ga4_script = '<!-- GA4 not configured -->'
+              print('GA4: not configured')
+
+          # ── HTML ファイル ─────────────────────────────────────
+          for path in ['dist/index.html']:
+              try:
+                  with open(path, 'r', encoding='utf-8') as f:
+                      content = f.read()
+                  content = re.sub(r'<!--\s*%%GA4_SCRIPT%%\s*-->', ga4_script, content)
+                  content = content.replace('%%GA4_SCRIPT%%', ga4_script)
+                  content = content.replace('%%SITE_URL%%',   site_url)
+                  content = content.replace('%%GAS_URL%%',    gas_url)
+                  content = content.replace('%%WORKER_URL%%', worker_url)
+                  content = content.replace('%%GA4_ID%%',     ga4_id or 'G-XXXXXXXXXX')
+                  with open(path, 'w', encoding='utf-8') as f:
+                      f.write(content)
+                  print('Processed (HTML): ' + path)
+              except FileNotFoundError:
+                  print('Skipped (not found): ' + path)
+
+          # ── JS ファイル（ルート + js/ 配下を再帰探索）──────────
+          js_targets = ['dist/app.js', 'dist/tour-data.js']
+          for root, dirs, files in os.walk('dist/js'):
+              for fname in files:
+                  if fname.endswith('.js'):
+                      js_targets.append(os.path.join(root, fname))
+
+          for path in js_targets:
+              try:
+                  with open(path, 'r', encoding='utf-8') as f:
+                      content = f.read()
+                  content = content.replace('%%GA4_SCRIPT%%', '/* GA4_SCRIPT_PLACEHOLDER_REMOVED */')
+                  content = content.replace('%%SITE_URL%%',   site_url)
+                  content = content.replace('%%GAS_URL%%',    gas_url)
+                  content = content.replace('%%WORKER_URL%%', worker_url)
+                  content = content.replace('%%GA4_ID%%',     ga4_id or 'G-XXXXXXXXXX')
+                  with open(path, 'w', encoding='utf-8') as f:
+                      f.write(content)
+                  print('Processed (JS): ' + path)
+              except FileNotFoundError:
+                  print('Skipped (not found): ' + path)
+
+          # ── その他テキストファイル ────────────────────────────
+          for path in ['dist/robots.txt', 'dist/sitemap.xml', 'dist/app.webmanifest']:
+              try:
+                  with open(path, 'r', encoding='utf-8') as f:
+                      content = f.read()
+                  content = content.replace('%%GA4_SCRIPT%%', '/* GA4_SCRIPT_PLACEHOLDER_REMOVED */')
+                  content = content.replace('%%SITE_URL%%',   site_url)
+                  content = content.replace('%%GAS_URL%%',    gas_url)
+                  content = content.replace('%%WORKER_URL%%', worker_url)
+                  content = content.replace('%%GA4_ID%%',     ga4_id or 'G-XXXXXXXXXX')
+                  with open(path, 'w', encoding='utf-8') as f:
+                      f.write(content)
+                  print('Processed (text): ' + path)
+              except FileNotFoundError:
+                  print('Skipped (not found): ' + path)
+
+          print('SITE_URL: ' + site_url)
+          print('GAS_URL: '  + ('set' if gas_url else 'not set'))
+          print('WORKER_URL: ' + ('set' if worker_url else 'not set'))
+          PYEOF
+
+      - name: Generate SDS-v2 daily salt
+        env:
+          SIGN_KEY: ${{ secrets.SIGN_KEY }}
+        run: |
+          set -euo pipefail
+          DATE=$(TZ=Asia/Tokyo date +%Y-%m-%d 2>/dev/null || date -u -d '+9 hours' +%Y-%m-%d)
+          TOMORROW=$(date -u -d '+1 day' +%Y-%m-%dT00:00:00Z 2>/dev/null || date -u -v+1d +%Y-%m-%dT00:00:00Z)
+          if [ -n "${SIGN_KEY:-}" ]; then
+            SALT=$(printf '%s%s%s' "${SIGN_KEY}" "daily" "${DATE}" | openssl dgst -sha256 -hex | awk '{print $2}')
+          else
+            SALT="0000000000000000000000000000000000000000000000000000000000000000"
+            echo "Warning: SIGN_KEY not set"
+          fi
+          mkdir -p dist/tokens
+          printf '{"date":"%s","salt":"%s","token":"%s","expires":"%s","v":2}\n' \
+            "${DATE}" "${SALT}" "${SALT}" "${TOMORROW}" > "dist/tokens/${DATE}.json"
+          echo "SDS-v2 salt generated for ${DATE}"
+
+      - name: Generate signed manifest
+        env:
+          SIGN_KEY: ${{ secrets.SIGN_KEY }}
+        run: |
+          DATE=$(date -u +%Y-%m-%d)
+          if [ -n "${SIGN_KEY:-}" ]; then
+            KEY=$(printf '%s%s' "${SIGN_KEY}" "${DATE}" | openssl dgst -sha256 -hex | awk '{print $2}')
+          else
+            KEY="static-manifest-key"
+          fi
+          printf '{"date":"%s","k":"%s","v":1}\n' "${DATE}" "${KEY}" > dist/manifest.json
+          echo "manifest.json generated"
+
+      - name: Security audit
+        env:
+          SIGN_KEY: ${{ secrets.SIGN_KEY }}
+        run: |
+          FAIL=0
+          if [ -n "${SIGN_KEY:-}" ] && grep -rq "${SIGN_KEY}" dist/ 2>/dev/null; then
+            echo "SECURITY FAIL: SIGN_KEY leaked"; FAIL=1
+          fi
+          [ "$FAIL" -eq 0 ] && echo "Security audit passed"
+          exit $FAIL
+
+      - name: Validate placeholders replaced
+        run: |
+          REMAINING=$(grep -ro '%%[A-Z_]*%%' dist/ || true)
+          if [ -n "$REMAINING" ]; then
+            echo "Unreplaced placeholders found:"
+            echo "$REMAINING"
+            exit 1
+          fi
+          echo "All placeholders replaced successfully"
+
+      - name: Validate no HTML in JS
+        run: |
+          HTML_IN_JS=$(grep -rE '<script|</script>' dist/ --include='*.js' 2>/dev/null || true)
+          if [ -n "$HTML_IN_JS" ]; then
+            echo "SECURITY FAIL: HTML tags found in JS files:"
+            echo "$HTML_IN_JS"
+            exit 1
+          fi
+          echo "JS files are HTML-tag free"
+
+      - name: Validate required assets
+        run: |
+          MISSING=""
+
+          # ── ルートファイル ───────────────────────────────────
+          [ ! -f "dist/index.html" ]   && MISSING="$MISSING dist/index.html"
+          [ ! -f "dist/app.js" ]       && MISSING="$MISSING dist/app.js"
+          [ ! -f "dist/tour-data.js" ] && MISSING="$MISSING dist/tour-data.js"
+
+          # ── ★ js/ 新設ファイル（必須）───────────────────────
+          [ ! -f "dist/js/utils/geo.js" ]             && MISSING="$MISSING dist/js/utils/geo.js"
+          [ ! -f "dist/js/config/map-config.js" ]     && MISSING="$MISSING dist/js/config/map-config.js"
+          [ ! -f "dist/js/renderer/map-renderer.js" ] && MISSING="$MISSING dist/js/renderer/map-renderer.js"
+          [ ! -f "dist/js/data/cities.json" ]         && MISSING="$MISSING dist/js/data/cities.json"
+          [ ! -f "dist/js/data/continents.json" ]     && MISSING="$MISSING dist/js/data/continents.json"
+
+          # ── ★ assets/（任意 — 未配置時は Canvas フォールバック）
+          if [ ! -f "dist/assets/maps/world-base.png" ]; then
+            echo "Warning: dist/assets/maps/world-base.png not found"
+            echo "  → Canvas fallback (continents.json) will be used"
+          else
+            SIZE=$(stat -c%s "dist/assets/maps/world-base.png" 2>/dev/null \
+                || stat -f%z "dist/assets/maps/world-base.png")
+            echo "world-base.png: found (${SIZE} bytes)"
+          fi
+
+          # ── ★ 航路シェア廃止確認（ゾンビ関数チェック）──────
+          if grep -q "buildShareCanvas" dist/app.js 2>/dev/null; then
+            echo "FAIL: buildShareCanvas() still exists in dist/app.js (zombie function)"
+            MISSING="$MISSING [zombie:buildShareCanvas]"
+          fi
+
+          if [ -n "$MISSING" ]; then
+            echo "Missing required files:$MISSING"
+            exit 1
+          fi
+          echo "Required assets validation passed"
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+      - name: Summary
+        run: |
+          echo "## Deploy Complete" >> "$GITHUB_STEP_SUMMARY"
+          echo "- URL: ${{ steps.deployment.outputs.page_url }}"                                  >> "$GITHUB_STEP_SUMMARY"
+          echo "- SDS-v2: generated"                                                              >> "$GITHUB_STEP_SUMMARY"
+          echo "- manifest.json: generated"                                                       >> "$GITHUB_STEP_SUMMARY"
+          echo "- js/ modules: $(find dist/js -type f 2>/dev/null | wc -l) files"                >> "$GITHUB_STEP_SUMMARY"
+          echo "- assets/: $(find dist/assets -type f 2>/dev/null | wc -l) files"                >> "$GITHUB_STEP_SUMMARY"
+          echo "- world-base.png: $([ -f dist/assets/maps/world-base.png ] && echo 'YES' || echo 'NO — Canvas fallback')" >> "$GITHUB_STEP_SUMMARY"
