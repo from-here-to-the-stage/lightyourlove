@@ -1,64 +1,41 @@
 // ═══════════════════════════════════════════════════════════════
-// From Here. To the Stage. — app.js
+// From Here. To the Stage. — app.js  (ES Module / 最終版)
 // BTS ARIRANG World Tour 2026–2027  Fan Light Experience
-// ═══════════════════════════════════════════════════════════════
-// ▶ ツアーデータの編集は tour-data.js で行ってください
-// ▶ デザインの変更は styles.css で行ってください
 // ─────────────────────────────────────────────────────────────
-//
-// プレースホルダー（deploy.ymlがビルド時に置換）:
-//   %%GA4_ID%%      → Google Analytics 測定ID
-//   %%SITE_URL%%    → https://from-here-to-the-stage.github.io/lightyourlove
-//   %%GAS_URL%%     → Google Apps Script エンドポイント
-//   %%WORKER_URL%%  → Cloudflare Worker エンドポイント
-//
-// 注: %%GA4_SCRIPT%% は HTML 専用のプレースホルダーです。
-// JavaScript ファイル内には絶対に含めないでください
-// （HTMLタグが注入されると SyntaxError でアプリ全体が停止します）。
+// 変更点サマリ:
+//   ✦ 大陸Canvas描画を廃止 → MapRenderer (world-base.png) に委譲
+//   ✦ 航路シェア廃止 → デイリー推しシェアに一本化
+//   ✦ 複数日公演 + LIVE維持 パッチ統合済み
 // ═══════════════════════════════════════════════════════════════
+
+import { hav, brng, blbl, oceanName } from './js/utils/geo.js';
+import { MapRenderer }                from './js/renderer/map-renderer.js';
 
 'use strict';
 
 // ════════════════════════════════════════════════
-// ガード節付きDOM取得ユーティリティ
+// DOM ユーティリティ
 // ════════════════════════════════════════════════
 function getEl(id) {
   const el = document.getElementById(id);
   if (!el) console.warn(`[DOM] Element #${id} not found`);
   return el;
 }
-
-function setText(id, text) {
-  const el = getEl(id);
-  if (el) el.textContent = text;
-  return el;
-}
-
-function safeRemoveChild(parent, child) {
-  if (!parent || !child) return false;
-  if (child.parentNode !== parent) {
-    console.warn('[DOM] Attempted to remove child not owned by parent', child, parent);
-    return false;
-  }
-  try { parent.removeChild(child); return true; }
-  catch (e) { console.warn('[DOM] removeChild failed:', e); return false; }
-}
-
+function setText(id, text) { const el = getEl(id); if (el) el.textContent = text; return el; }
 function safeClearElement(el) {
   if (!el) return;
   try {
-    if (typeof el.replaceChildren === 'function') { el.replaceChildren(); }
-    else { el.innerHTML = ''; }
-  } catch (e) {
-    console.warn('[DOM] Failed to clear element:', e);
-    while (el.firstChild) { try { el.removeChild(el.firstChild); } catch (err) { break; } }
+    if (typeof el.replaceChildren === 'function') el.replaceChildren();
+    else el.innerHTML = '';
+  } catch(e) {
+    while (el.firstChild) { try { el.removeChild(el.firstChild); } catch(_) { break; } }
   }
 }
 
 // ════════════════════════════════════════════════
 // MEMBERS
 // ════════════════════════════════════════════════
-const MEMBERS=[
+const MEMBERS = [
   {id:'rm',    name:'RM',        jp:'RM',    color:'#4A90D9',rgb:'74,144,217'},
   {id:'jin',   name:'Jin',       jp:'ジン',  color:'#FF69B4',rgb:'255,105,180'},
   {id:'suga',  name:'SUGA',      jp:'SUGA',  color:'#9BA4B8',rgb:'155,164,184'},
@@ -69,31 +46,24 @@ const MEMBERS=[
 ];
 
 // ════════════════════════════════════════════════
-// SHOW DATE PARSER（複数日公演パッチ）
-// shows配列 ['5/9','5/10','5/11'] から
-// 個別のDateオブジェクト配列を生成する
+// SHOW DATE PARSER（複数日公演対応）
 // ════════════════════════════════════════════════
 function parseShowDates(cityData) {
   const dates = [];
   const baseTime = cityData.st ? new Date(cityData.st) : null;
   const baseYear = new Date(cityData.fd + 'T12:00:00Z').getUTCFullYear();
-
   (cityData.shows || []).forEach(showStr => {
     if (!showStr || showStr === 'TBA') return;
     const parts = showStr.split('/');
     if (parts.length < 2) return;
     const [month, day] = parts.map(Number);
     if (isNaN(month) || isNaN(day)) return;
-
     let showDate;
     if (baseTime) {
       showDate = new Date(baseTime);
       showDate.setMonth(month - 1);
       showDate.setDate(day);
-      // 年跨ぎ調整（例: 12月baseで1月公演）
-      if (month === 1 && baseTime.getMonth() === 11) {
-        showDate.setFullYear(baseTime.getFullYear() + 1);
-      }
+      if (month === 1 && baseTime.getMonth() === 11) showDate.setFullYear(baseTime.getFullYear() + 1);
     } else {
       showDate = new Date(Date.UTC(baseYear, month - 1, day, 12, 0, 0));
     }
@@ -102,81 +72,43 @@ function parseShowDates(cityData) {
   return dates;
 }
 
-// ════════════════════════════════════════════════
-// 次回showDateインデックスを動的取得
-// 開演後2時間以内（LIVE中）or 最も近い未来の公演日を返す
-// ════════════════════════════════════════════════
 function getNextShowIndex(v) {
   if (!v.showDates || v.showDates.length === 0) return -1;
   const now = new Date();
-  let bestIdx = -1;
-  let bestDiff = Infinity;
+  let bestIdx = -1, bestDiff = Infinity;
   for (let i = 0; i < v.showDates.length; i++) {
     const diff = v.showDates[i] - now;
-    // LIVE中（-2h〜0）または未来（0〜）の中で最小diffを選ぶ
-    if (diff > -7200000 && diff < bestDiff) {
-      bestDiff = diff;
-      bestIdx = i;
-    }
+    if (diff > -7200000 && diff < bestDiff) { bestDiff = diff; bestIdx = i; }
   }
   return bestIdx;
 }
 
 // ════════════════════════════════════════════════
-// TOUR DATA（複数日公演パッチ適用）
+// TOUR DATA
 // ════════════════════════════════════════════════
 const TOUR = [];
 const _now = new Date();
-
 REGIONS.forEach(r => r.cities.forEach(c => {
   const showDates = parseShowDates(c);
-
-  // 最も「今に近い」showDateのインデックスを初期計算
-  let nextShowIndex = -1;
-  let minDiff = Infinity;
-  let hasPastShow = false;
-
+  let nextShowIndex = -1, minDiff = Infinity, hasPastShow = false;
   showDates.forEach((showTime, idx) => {
     const diff = showTime - _now;
-    if (diff > -7200000) {
-      if (diff < minDiff) { minDiff = diff; nextShowIndex = idx; }
-    } else {
-      hasPastShow = true;
-    }
+    if (diff > -7200000) { if (diff < minDiff) { minDiff = diff; nextShowIndex = idx; } }
+    else hasPastShow = true;
   });
-
   let status = 'future';
   if (nextShowIndex >= 0) {
     const diff = showDates[nextShowIndex] - _now;
     if      (diff < -7200000)                    status = 'past';
     else if (diff <= 3600000 && diff > -7200000) status = 'next';
-    else                                          status = 'future';
-  } else if (hasPastShow || (!c.st && showDates.length === 0)) {
-    // showDates が空でst無しのTBA都市はfutureのまま
-    if (hasPastShow) status = 'past';
-  }
-
-  TOUR.push({
-    ...c,
-    status,
-    showDates,
-    nextShowIndex,
-    regionLabel:   r.label,
-    regionLabelJP: r.labelJP,
-    isTBA: !c.st || c.venue === 'TBA',
-  });
+  } else if (hasPastShow) { status = 'past'; }
+  TOUR.push({ ...c, status, showDates, nextShowIndex, regionLabel: r.label, regionLabelJP: r.labelJP, isTBA: !c.st || c.venue === 'TBA' });
 }));
-
-// UI互換: 最初の有効な非past都市を 'next' に昇格
 let foundNext = false;
 for (let i = 0; i < TOUR.length; i++) {
   if (TOUR[i].status === 'past') continue;
-  if (!foundNext && TOUR[i].nextShowIndex >= 0) {
-    TOUR[i].status = 'next';
-    foundNext = true;
-  } else if (TOUR[i].status === 'next') {
-    TOUR[i].status = 'future';
-  }
+  if (!foundNext && TOUR[i].nextShowIndex >= 0) { TOUR[i].status = 'next'; foundNext = true; }
+  else if (TOUR[i].status === 'next') TOUR[i].status = 'future';
 }
 
 // ════════════════════════════════════════════════
@@ -187,40 +119,29 @@ const Sec = {
   async init() {
     try {
       const r = await fetch('./manifest.json?_=' + Date.now(), {cache:'no-store', signal: AbortSignal.timeout(3000)});
-      if(r.ok) this.manifest = await r.json();
+      if (r.ok) this.manifest = await r.json();
     } catch(e) {}
   },
   async hmac(data, keyHex) {
-    const keyBytes = new Uint8Array(keyHex.match(/.{2}/g).map(h=>parseInt(h,16)));
+    const keyBytes = new Uint8Array(keyHex.match(/.{2}/g).map(h => parseInt(h, 16)));
     const key = await crypto.subtle.importKey('raw', keyBytes, {name:'HMAC',hash:'SHA-256'}, false, ['sign']);
     const sig  = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(JSON.stringify(data)));
-    return Array.from(new Uint8Array(sig)).map(b=>b.toString(16).padStart(2,'0')).join('');
+    return Array.from(new Uint8Array(sig)).map(b => b.toString(16).padStart(2,'0')).join('');
   },
-  async sign(data) {
-    if(!this.manifest?.k) return 'unsigned';
-    return await this.hmac(data, this.manifest.k);
-  },
-  async save(key, data) {
-    const sig = await this.sign(data);
-    localStorage.setItem(key, JSON.stringify({d:data, s:sig, v: this.manifest?.v||0}));
-  },
+  async sign(data)       { if (!this.manifest?.k) return 'unsigned'; return await this.hmac(data, this.manifest.k); },
+  async save(key, data)  { const sig = await this.sign(data); localStorage.setItem(key, JSON.stringify({d:data, s:sig, v:this.manifest?.v||0})); },
   async load(key, fallback) {
     const raw = localStorage.getItem(key);
-    if(!raw) return {...fallback};
+    if (!raw) return {...fallback};
     try {
       const {d, s} = JSON.parse(raw);
-      if(this.manifest?.k) {
+      if (this.manifest?.k) {
         const expected = await this.hmac(d, this.manifest.k);
-        if(s !== expected && s !== 'unsigned') {
-          console.warn('[Security] Signature mismatch on', key, '— resetting');
-          localStorage.removeItem(key);
-          return {...fallback};
-        }
+        if (s !== expected && s !== 'unsigned') { localStorage.removeItem(key); return {...fallback}; }
       }
       return d;
     } catch(e) { return {...fallback}; }
   },
-  status() { return this.manifest ? '✓ VERIFIED' : '○ LOCAL'; }
 };
 
 // ════════════════════════════════════════════════
@@ -231,123 +152,81 @@ const SDS = {
   STORAGE_KEY: 'bts_lr_sds_v2',
   SESSION_KEY: 'bts_lr_sds_sess',
   FP_KEY:      'bts_lr_fp_v1',
-
-  isGASEnabled() {
-    return this.GAS_URL && !this.GAS_URL.startsWith('%%') && this.GAS_URL.startsWith('https://');
-  },
-  jstDateStr() {
-    return new Date(Date.now() + 9*60*60*1000).toISOString().slice(0, 10);
-  },
+  isGASEnabled() { return this.GAS_URL && !this.GAS_URL.startsWith('%%') && this.GAS_URL.startsWith('https://'); },
+  jstDateStr()   { return new Date(Date.now() + 9*60*60*1000).toISOString().slice(0, 10); },
   _saltCache: null,
   async getSalt() {
     const today = this.jstDateStr();
-    if(this._saltCache?.date === today) return this._saltCache.salt;
+    if (this._saltCache?.date === today) return this._saltCache.salt;
     try {
       const res = await fetch(`./tokens/${today}.json?_=${Date.now()}`, {cache:'no-store', signal: AbortSignal.timeout(3000)});
-      if(!res.ok) return null;
+      if (!res.ok) return null;
       const data = await res.json();
-      if(data.expires && new Date() >= new Date(data.expires)) return null;
+      if (data.expires && new Date() >= new Date(data.expires)) return null;
       this._saltCache = { date: today, salt: data.salt || data.token };
       return this._saltCache.salt;
     } catch(e) { return null; }
   },
   async generateNonce() {
-    const buf = new Uint8Array(16);
-    crypto.getRandomValues(buf);
-    return Array.from(buf).map(b=>b.toString(16).padStart(2,'0')).join('');
+    const buf = new Uint8Array(16); crypto.getRandomValues(buf);
+    return Array.from(buf).map(b => b.toString(16).padStart(2,'0')).join('');
   },
-  async sign(salt, fingerprint, showKey, nonce, date) {
-    const enc = new TextEncoder();
-    const msg = enc.encode(salt + fingerprint + '|' + showKey + '|' + nonce + '|' + date);
+  async sign(salt, fp, sk, nonce, date) {
+    const msg = new TextEncoder().encode(salt + fp + '|' + sk + '|' + nonce + '|' + date);
     const buf = await crypto.subtle.digest('SHA-256', msg);
-    return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+    return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
   },
   async getFingerprint() {
     const saved = localStorage.getItem(this.FP_KEY);
-    if(saved && /^[0-9a-f]{64}$/i.test(saved)) return saved;
+    if (saved && /^[0-9a-f]{64}$/i.test(saved)) return saved;
     const canvas = document.createElement('canvas');
     const c2 = canvas.getContext('2d');
-    c2.font = '14px Chakra Petch, monospace';
-    c2.fillText('FHTS✦光🌟', 2, 2);
-    const raw = canvas.toDataURL()
-      + navigator.language + screen.width + screen.height
-      + (navigator.hardwareConcurrency||0) + (navigator.deviceMemory||0);
+    c2.font = '14px Chakra Petch, monospace'; c2.fillText('FHTS✦光🌟', 2, 2);
+    const raw = canvas.toDataURL() + navigator.language + screen.width + screen.height + (navigator.hardwareConcurrency||0) + (navigator.deviceMemory||0);
     const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(raw));
-    const fp = Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
-    localStorage.setItem(this.FP_KEY, fp);
-    return fp;
+    const fp = Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
+    localStorage.setItem(this.FP_KEY, fp); return fp;
   },
   loadLocal()   { try { return JSON.parse(localStorage.getItem(this.STORAGE_KEY) || '{}'); } catch(e) { return {}; } },
   loadSession() { try { return JSON.parse(sessionStorage.getItem(this.SESSION_KEY) || '{}'); } catch(e) { return {}; } },
-  isLocalSent(showKey) {
-    const today = this.jstDateStr();
-    const lr = this.loadLocal()[showKey];
-    const sr = this.loadSession()[showKey];
-    if(lr?.date === today) return true;
-    if(sr?.date === today) return true;
-    return false;
+  isLocalSent(sk) {
+    const today = this.jstDateStr(), lr = this.loadLocal()[sk], sr = this.loadSession()[sk];
+    return lr?.date === today || sr?.date === today;
   },
-  async sendToGAS(showKey, memberId, fingerprint, sig, nonce, date) {
-    const res = await fetch(this.GAS_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain' },
-      body: JSON.stringify({ showKey, memberId, fingerprint, sig, nonce, date, v: 2 }),
-      signal: AbortSignal.timeout(6000)
-    });
-    return await res.text();
-  },
-  saveLocal(showKey, memberId, sig, nonce, date) {
-    const rec = { date, memberId, sig, nonce, savedAt: new Date().toISOString() };
-    const local = this.loadLocal();
-    local[showKey] = rec;
+  saveLocal(sk, memberId, sig, nonce, date) {
+    const local = this.loadLocal(); local[sk] = { date, memberId, sig, nonce, savedAt: new Date().toISOString() };
     localStorage.setItem(this.STORAGE_KEY, JSON.stringify(local));
-    const sess = this.loadSession();
-    sess[showKey] = { date, memberId };
+    const sess = this.loadSession(); sess[sk] = { date, memberId };
     sessionStorage.setItem(this.SESSION_KEY, JSON.stringify(sess));
   },
-  async checkAndSend(showKey, memberId) {
+  async checkAndSend(sk, memberId) {
     const date = this.jstDateStr();
-    if(this.isLocalSent(showKey)) return { ok: false, reason: 'local_duplicate', source: 'local' };
+    if (this.isLocalSent(sk)) return { ok: false, reason: 'local_duplicate', source: 'local' };
     const fp = await this.getFingerprint();
-    if(this.isGASEnabled()) {
+    if (this.isGASEnabled()) {
       const salt = await this.getSalt();
-      if(!salt) { console.warn('[SDS] Salt fetch failed — local-only mode'); return { ok: true, reason: 'local_fallback', source: 'local' }; }
+      if (!salt) return { ok: true, reason: 'local_fallback', source: 'local' };
       const nonce = await this.generateNonce();
-      const sig   = await this.sign(salt, fp, showKey, nonce, date);
+      const sig   = await this.sign(salt, fp, sk, nonce, date);
       try {
-        const result = await this.sendToGAS(showKey, memberId, fp, sig, nonce, date);
-        if(result === 'Success')   { this.saveLocal(showKey, memberId, sig, nonce, date); return { ok: true, source: 'gas' }; }
-        if(result === 'Duplicate') { this.saveLocal(showKey, memberId, sig, nonce, date); return { ok: false, reason: 'gas_duplicate', source: 'gas' }; }
-        if(result.startsWith('Invalid')) return { ok: false, reason: 'invalid_signature', source: 'gas' };
-        if(result.startsWith('Expired')) return { ok: false, reason: 'expired_date', source: 'gas' };
-        console.warn('[SDS] Unexpected GAS response:', result);
+        const result = await (await fetch(this.GAS_URL, {
+          method:'POST', headers:{'Content-Type':'text/plain'},
+          body: JSON.stringify({showKey:sk, memberId, fingerprint:fp, sig, nonce, date, v:2}),
+          signal: AbortSignal.timeout(6000)
+        })).text();
+        if (result === 'Success')   { this.saveLocal(sk, memberId, sig, nonce, date); return { ok: true, source: 'gas' }; }
+        if (result === 'Duplicate') { this.saveLocal(sk, memberId, sig, nonce, date); return { ok: false, reason: 'gas_duplicate', source: 'gas' }; }
+        if (result.startsWith('Invalid')) return { ok: false, reason: 'invalid_signature', source: 'gas' };
+        if (result.startsWith('Expired')) return { ok: false, reason: 'expired_date', source: 'gas' };
         return { ok: true, reason: 'gas_fallback', source: 'local' };
-      } catch(e) {
-        console.warn('[SDS] GAS unreachable — local fallback:', e.message);
-        return { ok: true, reason: 'network_fallback', source: 'local' };
-      }
+      } catch(e) { return { ok: true, reason: 'network_fallback', source: 'local' }; }
     } else {
-      const salt = await this.getSalt();
-      if(salt) {
-        const nonce = await this.generateNonce();
-        const sig   = await this.sign(salt, fp, showKey, nonce, date);
-        this.saveLocal(showKey, memberId, sig, nonce, date);
-      } else {
-        this.saveLocal(showKey, memberId, 'unsigned', 'no-salt', date);
-      }
+      const salt = await this.getSalt(), nonce = await this.generateNonce();
+      const sig = salt ? await this.sign(salt, fp, sk, nonce, date) : 'unsigned';
+      this.saveLocal(sk, memberId, sig, nonce, date);
       return { ok: true, source: 'actions-only' };
     }
   }
-};
-
-const DailyToken = {
-  STORAGE_KEY: SDS.STORAGE_KEY,
-  jstDateStr()  { return SDS.jstDateStr(); },
-  todayStr()    { return new Date().toISOString().slice(0,10); },
-  getFingerprint() { return SDS.getFingerprint(); },
-  showKeyFor(v) { return `${v.fd}_${v.city}`; },
-  async isAlreadySent(showKey) { return SDS.isLocalSent(showKey); },
-  async recordSend(showKey, fp, memberId) { SDS.saveLocal(showKey, memberId, 'post-send', 'bridge', SDS.jstDateStr()); }
 };
 
 // ════════════════════════════════════════════════
@@ -358,9 +237,9 @@ let sentShows = {};
 try { sentShows = JSON.parse(localStorage.getItem(SENT_KEY)||'{}'); } catch(e) {}
 const showKey = v => `${v.fd}_${v.city}`;
 const isSent  = v => !!sentShows[showKey(v)];
-const sentMem = v => { const e=sentShows[showKey(v)]; if(!e) return null; const id=typeof e==='object'?e.m:e; return MEMBERS.find(m=>m.id===id)||null; };
+const sentMem = v => { const e = sentShows[showKey(v)]; if (!e) return null; const id = typeof e === 'object' ? e.m : e; return MEMBERS.find(m => m.id === id) || null; };
 function markSent(v, m, pwr) {
-  sentShows[showKey(v)] = {m:m.id, p:Math.round(pwr), d:new Date().toISOString().slice(0,10)};
+  sentShows[showKey(v)] = {m: m.id, p: Math.round(pwr), d: new Date().toISOString().slice(0,10)};
   localStorage.setItem(SENT_KEY, JSON.stringify(sentShows));
 }
 
@@ -368,43 +247,35 @@ function markSent(v, m, pwr) {
 // POWER / STREAK SYSTEM
 // ════════════════════════════════════════════════
 const POWER_KEY = 'bts_lr_power_v1';
-let powerData = {lastDate:'',streak:0,total:0};
-
+let powerData = {lastDate:'', streak:0, total:0};
 function todayStr()     { return new Date().toISOString().slice(0,10); }
 function yesterdayStr() { return new Date(Date.now()-86400000).toISOString().slice(0,10); }
-
 function recordDailyVisit() {
-  const today = todayStr();
-  if(powerData.lastDate === today) return;
+  const today = todayStr(); if (powerData.lastDate === today) return;
   powerData.streak = powerData.lastDate === yesterdayStr() ? powerData.streak+1 : 1;
-  powerData.total++;
-  powerData.lastDate = today;
-  savePower();
+  powerData.total++; powerData.lastDate = today; savePower();
 }
 function savePower() { Sec.save(POWER_KEY, powerData); }
-function getPower()  { return Math.min(powerData.total*0.8 + powerData.streak*2.5, 100); }
+function getPower()  { return Math.min(powerData.total * 0.8 + powerData.streak * 2.5, 100); }
 
 // ════════════════════════════════════════════════
 // DAILY MEMBER CHECKIN SYSTEM
 // ════════════════════════════════════════════════
 const DAILY_KEY = 'bts_lr_daily_v1';
-let dailyData = {date:'',members:[],rainbowCount:0};
-
+let dailyData = {date:'', members:[], rainbowCount:0};
 function resetDailyIfNeeded() {
-  if(dailyData.date !== todayStr()) {
-    dailyData = {date:todayStr(), members:[], rainbowCount: dailyData.rainbowCount||0};
+  if (dailyData.date !== todayStr()) {
+    dailyData = {date: todayStr(), members: [], rainbowCount: dailyData.rainbowCount||0};
     Sec.save(DAILY_KEY, dailyData);
   }
 }
-
 function checkInMember(memberId) {
   resetDailyIfNeeded();
-  if(dailyData.members.length >= 1) return { action: 'locked', reason: 'already_selected' };
+  if (dailyData.members.length >= 1) return { action: 'locked', reason: 'already_selected' };
   dailyData.members = [memberId];
   powerData.total = (powerData.total||0) + 1;
-  savePower();
-  Sec.save(DAILY_KEY, dailyData);
-  setTimeout(()=> showChargeEffect(MEMBERS.find(m=>m.id===memberId)||activeMember), 100);
+  savePower(); Sec.save(DAILY_KEY, dailyData);
+  setTimeout(() => showChargeEffect(MEMBERS.find(m => m.id === memberId) || activeMember), 100);
   return { action: 'added', memberId };
 }
 
@@ -422,24 +293,23 @@ const TITLE_TIERS = [
 ];
 function computeTitles() {
   const stars = Object.keys(sentShows).length;
-  const tier  = [...TITLE_TIERS].reverse().find(t=>stars>=t.min) || TITLE_TIERS[0];
+  const tier  = [...TITLE_TIERS].reverse().find(t => stars >= t.min) || TITLE_TIERS[0];
   const mc = {};
-  Object.values(sentShows).forEach(e=>{ const id=typeof e==='object'?e.m:e; mc[id]=(mc[id]||0)+1; });
-  const topEntry = Object.entries(mc).sort((a,b)=>b[1]-a[1])[0];
+  Object.values(sentShows).forEach(e => { const id = typeof e === 'object' ? e.m : e; mc[id] = (mc[id]||0)+1; });
+  const topEntry = Object.entries(mc).sort((a,b) => b[1]-a[1])[0];
   let oshi = null;
-  if(topEntry){
-    const [mid, cnt] = topEntry;
-    const m = MEMBERS.find(x=>x.id===mid);
-    const allSame = stars>0 && Object.values(sentShows).every(e=>(typeof e==='object'?e.m:e)===mid);
-    if(allSame && stars>=5)  oshi={jp:`${m.jp}への一途な愛`, en:`ETERNAL DEVOTION · ${m.name}`,color:m.color};
-    else if(cnt>=10)         oshi={jp:`${m.jp}の光`,        en:`LIGHT OF ${m.name}`,             color:m.color};
-    else if(cnt>=3)          oshi={jp:`${m.jp}の声`,        en:`VOICE OF ${m.name}`,             color:m.color};
+  if (topEntry) {
+    const [mid, cnt] = topEntry, m = MEMBERS.find(x => x.id === mid);
+    const allSame = stars > 0 && Object.values(sentShows).every(e => (typeof e === 'object' ? e.m : e) === mid);
+    if (allSame && stars >= 5)  oshi = {jp:`${m.jp}への一途な愛`, en:`ETERNAL DEVOTION · ${m.name}`, color:m.color};
+    else if (cnt >= 10)         oshi = {jp:`${m.jp}の光`,        en:`LIGHT OF ${m.name}`,            color:m.color};
+    else if (cnt >= 3)          oshi = {jp:`${m.jp}の声`,        en:`VOICE OF ${m.name}`,            color:m.color};
   }
   const rc = dailyData.rainbowCount||0;
   let rainbow = null;
-  if(rc>=7)      rainbow={jp:'🌈✨ 虹の伝説', en:'🌈✨ RAINBOW LEGEND'};
-  else if(rc>=3) rainbow={jp:'🌈🌈 虹の戦士', en:'🌈🌈 RAINBOW WARRIOR'};
-  else if(rc>=1) rainbow={jp:'🌈 虹の夢',     en:'🌈 RAINBOW DREAMER'};
+  if (rc >= 7)      rainbow = {jp:'🌈✨ 虹の伝説', en:'🌈✨ RAINBOW LEGEND'};
+  else if (rc >= 3) rainbow = {jp:'🌈🌈 虹の戦士', en:'🌈🌈 RAINBOW WARRIOR'};
+  else if (rc >= 1) rainbow = {jp:'🌈 虹の夢',     en:'🌈 RAINBOW DREAMER'};
   return {tier, stars, oshi, rainbow};
 }
 
@@ -447,122 +317,89 @@ function computeTitles() {
 // APP STATE
 // ════════════════════════════════════════════════
 let lang         = 'jp';
-let activeMember = MEMBERS.find(m=>m.id==='jimin');
-let energyCount  = 24831 + Math.floor(Math.random()*80);
+let activeMember = MEMBERS.find(m => m.id === 'jimin');
+let energyCount  = 24831 + Math.floor(Math.random() * 80);
 let routeFrom    = TOUR[0], routeTo = TOUR[1], targetStop = TOUR[0];
 let devHeading   = 0, demoMode = false, sendReady = false;
 let userLat = null, userLng = null, geoGranted = false;
-let planeT=0, planeDir=1;
+let planeT = 0, planeDir = 1;
+let mapRenderer = null;
 const shownArrival = new Set();
-try { JSON.parse(localStorage.getItem('bts_lr_arr')||'[]').forEach(k=>shownArrival.add(k)); } catch(e){}
-const WINDOW_MS = 60*60*1000;
+try { JSON.parse(localStorage.getItem('bts_lr_arr')||'[]').forEach(k => shownArrival.add(k)); } catch(e) {}
+const WINDOW_MS = 60 * 60 * 1000;
 
 // ════════════════════════════════════════════════
 // LANGUAGE
 // ════════════════════════════════════════════════
-function applyLangToCards(){
-  const isEn = lang==='en';
-  document.querySelectorAll('.txt-jp').forEach(el=>{ if(el) el.style.display=isEn?'none':''; });
-  document.querySelectorAll('.txt-en').forEach(el=>{ if(el) el.style.display=isEn?'':'none'; });
-  document.querySelectorAll('.sc-tag[data-jp]').forEach(el=>{ el.textContent = isEn ? el.dataset.en : el.dataset.jp; });
-  document.querySelectorAll('[data-name-jp]').forEach(el=>{ el.textContent = isEn ? el.dataset.nameEn : el.dataset.nameJp; });
+function applyLangToCards() {
+  const isEn = lang === 'en';
+  document.querySelectorAll('.txt-jp').forEach(el => { if (el) el.style.display = isEn ? 'none' : ''; });
+  document.querySelectorAll('.txt-en').forEach(el => { if (el) el.style.display = isEn ? '' : 'none'; });
+  document.querySelectorAll('.sc-tag[data-jp]').forEach(el => { el.textContent = isEn ? el.dataset.en : el.dataset.jp; });
+  document.querySelectorAll('[data-name-jp]').forEach(el => { el.textContent = isEn ? el.dataset.nameEn : el.dataset.nameJp; });
 }
-function toggleLang(){
-  lang = lang==='jp'?'en':'jp';
-  document.body.classList.toggle('lang-en', lang==='en');
-  const langActive = getEl('langActive');
-  const langOther  = getEl('langOther');
-  if(langActive) langActive.textContent = lang.toUpperCase();
-  if(langOther)  langOther.textContent  = lang==='jp'?'EN':'JP';
-  document.documentElement.lang = lang==='jp'?'ja':'en';
+function toggleLang() {
+  lang = lang === 'jp' ? 'en' : 'jp';
+  document.body.classList.toggle('lang-en', lang === 'en');
+  const langActive = getEl('langActive'), langOther = getEl('langOther');
+  if (langActive) langActive.textContent = lang.toUpperCase();
+  if (langOther)  langOther.textContent  = lang === 'jp' ? 'EN' : 'JP';
+  document.documentElement.lang = lang === 'jp' ? 'ja' : 'en';
   applyLangToCards();
   refreshStep(); updateSendBtnText(); updateCountdown(); updateShowtime();
   renderTitleZone(); refreshDailyUI();
+  // ── シェアモーダルが開いている場合は閉じる（言語切替による文字化け防止）──
+  const _modal = getEl('shareModal');
+  if (_modal && _modal.classList.contains('on')) _modal.classList.remove('on');
 }
-
-// ════════════════════════════════════════════════
-// MATH
-// ════════════════════════════════════════════════
-const toR=d=>d*Math.PI/180, toD=r=>r*180/Math.PI;
-function hav(a,b,c,d){
-  const R=6371,e=Math.sin(toR(c-a)/2)**2+Math.cos(toR(a))*Math.cos(toR(c))*Math.sin(toR(d-b)/2)**2;
-  return R*2*Math.asin(Math.sqrt(e));
-}
-function brng(a,b,c,d){
-  const p1=toR(a),p2=toR(c),Dl=toR(d-b),y=Math.sin(Dl)*Math.cos(p2),x=Math.cos(p1)*Math.sin(p2)-Math.sin(p1)*Math.cos(p2)*Math.cos(Dl);
-  return(toD(Math.atan2(y,x))+360)%360;
-}
-function gc(a,b,c,d,n=100){
-  const pts=[],p1=toR(a),l1=toR(b),p2=toR(c),l2=toR(d);
-  const dist=2*Math.asin(Math.sqrt(Math.sin((p2-p1)/2)**2+Math.cos(p1)*Math.cos(p2)*Math.sin((l2-l1)/2)**2));
-  for(let i=0;i<=n;i++){
-    const f=i/n; if(dist<1e-6){pts.push([a,b]);continue;}
-    const A=Math.sin((1-f)*dist)/Math.sin(dist),B=Math.sin(f*dist)/Math.sin(dist);
-    const x=A*Math.cos(p1)*Math.cos(l1)+B*Math.cos(p2)*Math.cos(l2);
-    const y=A*Math.cos(p1)*Math.sin(l1)+B*Math.cos(p2)*Math.sin(l2);
-    const z=A*Math.sin(p1)+B*Math.sin(p2);
-    pts.push([toD(Math.atan2(z,Math.sqrt(x*x+y*y))),toD(Math.atan2(y,x))]);
-  }
-  return pts;
-}
-const GCP = { IMG_W:1338, IMG_H:921, LNG_S:4.090163, LNG_O:719.5148, LAT_S:-265.7058, LAT_O:588.8772 };
-function ll(la, lo, W, H){
-  const x = (GCP.LNG_S * lo + GCP.LNG_O) / GCP.IMG_W * W;
-  const m = Math.log(Math.tan(Math.PI/4 + la * Math.PI/360));
-  const y = (GCP.LAT_S * m + GCP.LAT_O) / GCP.IMG_H * H;
-  return [x, y];
-}
-const BLBL=['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W','WNW','NW','NNW'];
-function blbl(b){return BLBL[Math.round(b/22.5)%16];}
 
 // ════════════════════════════════════════════════
 // STARS BACKGROUND
 // ════════════════════════════════════════════════
-function initStars(){
+function initStars() {
   try {
-    const el=getEl('stars'); if(!el) return;
+    const el = getEl('stars'); if (!el) return;
     safeClearElement(el);
-    for(let i=0;i<72;i++){
-      const s=document.createElement('div'); s.className='star';
-      const sz=Math.random()*1.8+.7;
-      s.style.cssText=`left:${Math.random()*100}%;top:${Math.random()*100}%;width:${sz}px;height:${sz}px;`;
-      s.style.setProperty('--d',(2+Math.random()*5)+'s');
-      s.style.setProperty('--o',(0.08+Math.random()*0.48).toFixed(2));
-      s.style.setProperty('--dl',(Math.random()*6)+'s');
+    for (let i = 0; i < 72; i++) {
+      const s = document.createElement('div'); s.className = 'star';
+      const sz = Math.random() * 1.8 + 0.7;
+      s.style.cssText = `left:${Math.random()*100}%;top:${Math.random()*100}%;width:${sz}px;height:${sz}px;`;
+      s.style.setProperty('--d',  (2 + Math.random() * 5) + 's');
+      s.style.setProperty('--o',  (0.08 + Math.random() * 0.48).toFixed(2));
+      s.style.setProperty('--dl', (Math.random() * 6) + 's');
       el.appendChild(s);
     }
-  } catch (e) { console.warn('[Stars] Init failed:', e); }
+  } catch(e) { console.warn('[Stars] Init failed:', e); }
 }
 
 // ════════════════════════════════════════════════
 // CARDS
 // ════════════════════════════════════════════════
-const MONJP=['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
+const MONJP = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
 
-function initCards(){
+function initCards() {
   try {
-    const wrap=getEl('schedCards');
-    if(!wrap){ console.warn('[Cards] schedCards not found'); return; }
+    const wrap = getEl('schedCards'); if (!wrap) return;
     safeClearElement(wrap);
-    let lastRegion='';
-    const mons  =['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-    const monJP =['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
-    TOUR.forEach((v,i)=>{
-      if(v.regionLabel!==lastRegion){
-        lastRegion=v.regionLabel;
-        const div=document.createElement('div');
-        div.className='swiper-slide region-slide'; div.style.width='auto';
-        div.innerHTML=`<div class="region-tag"><span class="txt-jp">${v.regionLabelJP}</span><span class="txt-en" style="display:none">${v.regionLabel}</span></div>`;
+    let lastRegion = '';
+    const mons  = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const monJP = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
+    TOUR.forEach((v, i) => {
+      if (v.regionLabel !== lastRegion) {
+        lastRegion = v.regionLabel;
+        const div = document.createElement('div');
+        div.className = 'swiper-slide region-slide'; div.style.width = 'auto';
+        div.innerHTML = `<div class="region-tag"><span class="txt-jp">${v.regionLabelJP}</span><span class="txt-en" style="display:none">${v.regionLabel}</span></div>`;
         wrap.appendChild(div);
       }
-      const d=new Date(v.fd+'T12:00:00Z'),yr=d.getUTCFullYear();
-      const slide=document.createElement('div'); slide.className='swiper-slide';
-      const isPast=v.status==='past', isNext=v.status==='next';
-      const tagJP=isNext?'▶ 次回公演':isPast?'済':'UPCOMING';
-      const tagEN=isNext?'▶ NEXT':isPast?'PAST':'UPCOMING';
-      const borderCol=isNext?'rgba(91,63,217,.4)':'rgba(91,63,217,.12)';
-      const tagCol=isNext?'var(--purple)':'var(--dim)';
-      slide.innerHTML=`<div class="scard ${v.status}${v.isTBA?' tba':''}${isSent(v)?' show-sent':''}" id="card${i}" style="border-color:${borderCol};">
+      const d = new Date(v.fd + 'T12:00:00Z'), yr = d.getUTCFullYear();
+      const slide = document.createElement('div'); slide.className = 'swiper-slide';
+      const isPast = v.status === 'past', isNext = v.status === 'next';
+      const tagJP = isNext ? '▶ 次回公演' : isPast ? '済' : 'UPCOMING';
+      const tagEN = isNext ? '▶ NEXT'     : isPast ? 'PAST' : 'UPCOMING';
+      const borderCol = isNext ? 'rgba(91,63,217,.4)' : 'rgba(91,63,217,.12)';
+      const tagCol    = isNext ? 'var(--purple)' : 'var(--dim)';
+      slide.innerHTML = `<div class="scard ${v.status}${v.isTBA?' tba':''}${isSent(v)?' show-sent':''}" id="card${i}" style="border-color:${borderCol};">
         <div class="sc-num" style="font-size:11px;color:var(--dim);letter-spacing:1px;margin-bottom:5px;">${String(i+1).padStart(2,'0')} · ${v.country}</div>
         <div class="sc-tag" id="ctag${i}" data-jp="${tagJP}" data-en="${tagEN}" style="font-size:11px;font-weight:700;letter-spacing:1px;margin-bottom:5px;color:${tagCol};">${lang==='en'?tagEN:tagJP}</div>
         <div class="sc-city" style="font-size:15px;font-weight:800;line-height:1.2;margin-bottom:3px;font-family:'Chakra Petch',sans-serif;">${v.city}</div>
@@ -577,476 +414,297 @@ function initCards(){
         <div style="font-size:11px;color:var(--dim);">${v.shows.slice(0,3).join(' / ')}${v.shows.length>3?'…':''}</div>
       </div>`;
       const cardEl = slide.querySelector('.scard');
-      if(cardEl) cardEl.addEventListener('click',()=>selectStop(v,i));
+      if (cardEl) cardEl.addEventListener('click', () => selectStop(v, i));
       wrap.appendChild(slide);
     });
-    if(typeof Swiper!=='undefined'){
-      let sw;
+    if (typeof Swiper !== 'undefined') {
       try {
-        sw=new Swiper('#schedSwiper',{slidesPerView:'auto',spaceBetween:8,freeMode:true,grabCursor:true});
-        const track=getEl('schedTrack'), thumb=getEl('schedThumb');
-        function syncBar(){
-          if(!track||!thumb) return;
-          const wr=document.querySelector('#schedSwiper .swiper-wrapper'); if(!wr) return;
-          const total=wr.scrollWidth, view=sw.width||track.offsetWidth;
-          if(total<=view){track.style.display='none';return;}
-          track.style.display='';
-          const ratio=Math.min(view/total,1), tw=Math.max(ratio*track.offsetWidth,24);
-          const maxL=track.offsetWidth-tw, prog=sw.progress||0;
-          thumb.style.width=tw+'px';
-          thumb.style.left=Math.max(0,Math.min(maxL,prog*maxL))+'px';
+        const sw = new Swiper('#schedSwiper', {slidesPerView:'auto', spaceBetween:8, freeMode:true, grabCursor:true});
+        const track = getEl('schedTrack'), thumb = getEl('schedThumb');
+        function syncBar() {
+          if (!track || !thumb) return;
+          const wr = document.querySelector('#schedSwiper .swiper-wrapper'); if (!wr) return;
+          const total = wr.scrollWidth, view = sw.width || track.offsetWidth;
+          if (total <= view) { track.style.display = 'none'; return; }
+          track.style.display = '';
+          const ratio = Math.min(view/total, 1), tw = Math.max(ratio * track.offsetWidth, 24);
+          const maxL = track.offsetWidth - tw, prog = sw.progress || 0;
+          thumb.style.width = tw + 'px';
+          thumb.style.left  = Math.max(0, Math.min(maxL, prog * maxL)) + 'px';
         }
-        sw.on('progress',syncBar); sw.on('setTranslate',syncBar);
-        setTimeout(syncBar,200);
-        if(track) track.addEventListener('click',e=>{
-          const rect=track.getBoundingClientRect();
-          sw.setProgress((e.clientX-rect.left)/rect.width,0); syncBar();
+        sw.on('progress', syncBar); sw.on('setTranslate', syncBar); setTimeout(syncBar, 200);
+        if (track) track.addEventListener('click', e => {
+          const rect = track.getBoundingClientRect();
+          sw.setProgress((e.clientX - rect.left) / rect.width, 0); syncBar();
         });
-      } catch(e){ console.warn('[Swiper] Init failed:', e); }
+      } catch(e) { console.warn('[Swiper] Init failed:', e); }
     }
-  } catch (e) { console.error('[Cards] Fatal error in initCards:', e); }
+  } catch(e) { console.error('[Cards] Fatal error:', e); }
 }
 
-function refreshCardSent(){
-  try {
-    TOUR.forEach((v,i)=>{ const c=getEl('card'+i); if(c) c.classList.toggle('show-sent',isSent(v)); });
-  } catch (e) { console.warn('[Cards] refreshCardSent failed:', e); }
+function refreshCardSent() {
+  TOUR.forEach((v, i) => { const c = getEl('card'+i); if (c) c.classList.toggle('show-sent', isSent(v)); });
 }
 
 // ════════════════════════════════════════════════
-// SELECT STOP
+// SELECT STOP（複数日公演 + LIVE維持統合版）
 // ════════════════════════════════════════════════
-
-// ────────────────────────────────────────────────
-// findNextTarget() — 複数日公演＋LIVE維持 統合版
-//
-// 優先①: 送信済み + いずれかのshowDateが開演後0〜2時間
-//         → LIVE中なのでその都市を維持
-// 優先②: いずれかのshowDateが送信ウィンドウ内（開演1時間前）の未送信
-// 優先③: status==='next' の未送信
-// 優先④: 最も近い未来のshowDateを持つ未送信都市
-// ────────────────────────────────────────────────
-function findNextTarget(){
+function findNextTarget() {
   const now = new Date();
-
-  // 優先①: 送信済み + LIVE中（開演後0〜2時間）
-  for(const v of TOUR){
-    if(!v.st || v.isTBA || !isSent(v)) continue;
-    for(const showTime of (v.showDates || [])){
-      const diff = showTime - now;
-      if(diff <= 0 && diff > -7200000) return v;
-    }
+  // 優先①: LIVE中（開演後0〜2時間）かつ送信済み
+  for (const v of TOUR) {
+    if (!v.st || v.isTBA || !isSent(v)) continue;
+    for (const t of (v.showDates || [])) { const d = t - now; if (d <= 0 && d > -7200000) return v; }
   }
-
-  // 優先②: 送信ウィンドウ内（開演1時間前）の未送信
-  for(const v of TOUR){
-    if(!v.st || v.isTBA || isSent(v)) continue;
-    for(const showTime of (v.showDates || [])){
-      const diff = showTime - now;
-      if(diff >= 0 && diff <= WINDOW_MS) return v;
-    }
+  // 優先②: 送信ウィンドウ内の未送信
+  for (const v of TOUR) {
+    if (!v.st || v.isTBA || isSent(v)) continue;
+    for (const t of (v.showDates || [])) { const d = t - now; if (d >= 0 && d <= WINDOW_MS) return v; }
   }
-
   // 優先③: status==='next' の未送信
-  for(const v of TOUR){
-    if(v.status==='next' && !isSent(v)) return v;
-  }
-
-  // 優先④: 最も近い未来のshowDateを持つ未送信都市
+  for (const v of TOUR) { if (v.status === 'next' && !isSent(v)) return v; }
+  // 優先④: 最も近い未来のshowDateを持つ未送信
   let closest = null, closestDiff = Infinity;
-  for(const v of TOUR){
-    if(isSent(v)) continue;
-    for(const showTime of (v.showDates || [])){
-      const diff = showTime - now;
-      if(diff >= 0 && diff < closestDiff){ closestDiff = diff; closest = v; }
-    }
-    if(!v.st && !closest){ closest = v; break; }
+  for (const v of TOUR) {
+    if (isSent(v)) continue;
+    for (const t of (v.showDates || [])) { const d = t - now; if (d >= 0 && d < closestDiff) { closestDiff = d; closest = v; } }
+    if (!v.st && !closest) { closest = v; break; }
   }
   return closest || TOUR[TOUR.length-1];
 }
 
-function selectStop(v,i){
+function selectStop(v, i) {
   try {
-    const fi=Math.max(0,i-1); setRoute(TOUR[fi],v); targetStop=v;
-    document.querySelectorAll('.scard').forEach(c=>{ if(c) c.classList.remove('sel'); });
-    const card=getEl('card'+i); if(card) card.classList.add('sel');
-    const d=new Date(v.fd+'T12:00:00Z');
-    const tCity=getEl('tCity'), tDetail=getEl('tDetail'), tSent=getEl('tSent'), tSentTxt=getEl('tSentTxt');
-    if(tCity) tCity.textContent=v.city+(v.reg?', '+v.reg:'');
-    const _mons=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-    if(tDetail) tDetail.innerHTML=
-      `<span class="txt-jp">${MONJP[d.getUTCMonth()]}${d.getUTCDate()}日 · ${v.venue}</span>`+
+    const fi = Math.max(0, i-1); setRoute(TOUR[fi], v); targetStop = v;
+    document.querySelectorAll('.scard').forEach(c => { if (c) c.classList.remove('sel'); });
+    const card = getEl('card'+i); if (card) card.classList.add('sel');
+    const d = new Date(v.fd + 'T12:00:00Z');
+    const tCity = getEl('tCity'), tDetail = getEl('tDetail'), tSent = getEl('tSent'), tSentTxt = getEl('tSentTxt');
+    if (tCity) tCity.textContent = v.city + (v.reg ? ', '+v.reg : '');
+    const _mons = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    if (tDetail) tDetail.innerHTML =
+      `<span class="txt-jp">${MONJP[d.getUTCMonth()]}${d.getUTCDate()}日 · ${v.venue}</span>` +
       `<span class="txt-en" style="${lang==='jp'?'display:none':''}">${_mons[d.getUTCMonth()]} ${d.getUTCDate()} · ${v.venue}</span>`;
-    const sm=sentMem(v);
-    if(tSent && tSentTxt){
-      if(sm){
-        tSentTxt.innerHTML=`<span class="txt-jp">${sm.jp||sm.name}カラーで送信済み</span><span class="txt-en">Sent as ${sm.name}</span>`;
-        tSent.classList.add('on');
-      } else { tSent.classList.remove('on'); }
+    const sm = sentMem(v);
+    if (tSent && tSentTxt) {
+      if (sm) { tSentTxt.innerHTML = `<span class="txt-jp">${sm.jp||sm.name}カラーで送信済み</span><span class="txt-en">Sent as ${sm.name}</span>`; tSent.classList.add('on'); }
+      else tSent.classList.remove('on');
     }
     updateShowtime(); evaluateSendState();
-    if(geoGranted&&userLat) updateCompassFromUser();
+    if (geoGranted && userLat) updateCompassFromUser();
     else {
-      const lbl=getEl('compassFromLabel');
-      if(lbl) lbl.innerHTML=`<span class="txt-jp">${TOUR[fi].city} → ${v.city} (📍タップで現在地から)</span><span class="txt-en" style="display:${lang==='en'?'':'none'}">${TOUR[fi].city} → ${v.city} (tap 📍 for your location)</span>`;
+      const lbl = getEl('compassFromLabel');
+      if (lbl) lbl.innerHTML = `<span class="txt-jp">${TOUR[fi].city} → ${v.city} (📍タップで現在地から)</span><span class="txt-en" style="display:${lang==='en'?'':'none'}">${TOUR[fi].city} → ${v.city} (tap 📍 for your location)</span>`;
     }
-  } catch (e) { console.error('[SelectStop] Error:', e); }
+  } catch(e) { console.error('[SelectStop] Error:', e); }
 }
 
 // ════════════════════════════════════════════════
-// MAP
+// MAP — ルート設定・アニメーションループ
+// 描画は MapRenderer に完全委譲
 // ════════════════════════════════════════════════
-let mc, mctx;
-function initMapCanvas(){
-  try { mc=getEl('mapCanvas'); mctx=mc?mc.getContext('2d'):null; }
-  catch (e) { console.warn('[Map] Init failed:', e); }
-}
-
-function resizeMap(){
+function setRoute(from, to) {
   try {
-    if(!mc) return;
-    const parent=mc.parentElement; if(!parent) return;
-    const r=parent.getBoundingClientRect();
-    mc.width  = r.width  > 0 ? r.width  : (parent.offsetWidth  || 358);
-    mc.height = 210;
-    if(mc._bgCache) delete mc._bgCache;
-    drawMap();
-  } catch (e) { console.warn('[Map] Resize failed:', e); }
+    routeFrom = from; routeTo = to;
+    const d = Math.round(hav(from.lat, from.lng, to.lat, to.lng));
+    const b = Math.round(brng(from.lat, from.lng, to.lat, to.lng));
+    setText('routeLabel', `${from.city.toUpperCase()} → ${to.city.toUpperCase()}`);
+    setText('mapDistVal', d.toLocaleString() + ' km');
+    setText('cDist', d.toLocaleString() + ' km');
+    setText('cDeg', b + '°'); setText('cDir', blbl(b));
+    rotateNeedle(b - devHeading);
+  } catch(e) { console.warn('[Map] setRoute failed:', e); }
 }
 
-const BGCIT=[[35.6,139.7],[37.6,127],[22.3,114.2],[1.35,103.8],[13.8,100.5],[39.9,116.4],[28.6,77.2],[51.5,-0.1],[48.9,2.4],[52.5,13.4],[40.4,-3.7],[41.9,12.5],[55.8,37.6],[40.7,-74],[34.1,-118.2],[41.9,-87.6],[19.4,-99.1],[-23.5,-46.6],[-34.6,-58.4],[4.7,-74.1],[-12.0,-77.0],[-33.5,-70.6],[22.6,120.3],[14.6,121.0],[22.3,114.2],[27.9,-82.5],[31.8,-106.5],[36.1,-115.2],[40.8,-74.1],[39.3,-76.6],[32.7,-97.1]];
-
-const CONTINENTS=[
-  [[71.1,28.2],[70.4,22.0],[67.9,15.0],[64.5,11.2],[61.0,4.8],[59.2,5.3],[57.0,7.6],[55.5,8.0],[54.3,9.5],[56.2,15.5],[56.0,18.0],[54.5,18.5],[54.0,19.5],[55.5,23.5],[58.5,24.7],[59.3,26.0],[59.5,28.0],[60.0,27.5],[60.3,25.0],[58.0,24.0],[57.5,21.0],[57.0,24.3],[55.0,12.5],[57.5,10.5],[58.0,8.0],[57.5,7.0],[56.0,8.5],[55.5,10.5],[56.5,11.5],[57.0,11.2],[56.5,8.5],[55.5,8.5],[55.0,9.5],[54.0,8.0],[53.5,8.5],[53.0,8.0],[52.5,4.5],[52.0,4.0],[51.5,4.5],[50.5,0.5],[48.0,-4.5],[46.5,-1.5],[45.5,-1.0],[43.5,-2.0],[42.0,-9.0],[39.5,-7.0],[38.5,-9.5],[37.0,-8.5],[36.0,-5.5],[37.0,0.0],[40.0,0.5],[43.0,5.0],[43.5,7.5],[44.5,9.0],[43.5,12.5],[42.5,14.0],[42.5,16.0],[41.5,19.5],[41.0,19.5],[40.5,20.5],[40.0,19.5],[39.5,20.5],[38.5,20.5],[38.0,21.5],[36.0,23.0],[36.5,27.5],[36.0,28.5],[36.5,29.5],[37.0,28.0],[38.5,30.5],[41.5,40.5],[40.0,44.5],[39.0,45.0],[37.5,47.5],[36.0,52.0],[37.0,56.0],[37.5,55.0],[36.5,60.0],[38.5,67.5],[37.0,72.5],[38.5,78.0],[36.0,81.0],[34.5,86.0],[37.0,96.0],[30.0,110.0],[28.0,113.0],[23.5,117.5],[22.0,114.0],[21.5,110.5],[21.0,110.0],[20.0,110.5],[18.0,107.5],[17.0,107.0],[14.0,109.5],[12.5,109.0],[12.0,109.5],[11.0,108.5],[10.0,104.5],[9.5,104.0],[9.0,104.5],[8.0,100.0],[5.0,103.5],[4.0,103.0],[3.0,104.0],[2.0,103.5],[1.0,104.0],[2.0,103.5],[2.5,102.0],[4.0,100.5],[7.0,99.5],[8.0,98.0],[9.0,98.5],[10.0,98.0],[13.0,100.0],[15.0,100.0],[18.0,96.5],[19.0,94.0],[21.0,92.5],[22.5,90.5],[21.5,89.0],[20.0,92.0],[22.0,91.5],[22.5,88.5],[22.0,87.5],[17.5,83.5],[15.5,80.5],[14.5,80.0],[13.5,80.5],[13.0,80.0],[12.5,80.5],[12.0,79.5],[11.0,79.5],[10.0,80.5],[9.0,77.5],[8.0,77.5],[8.5,76.5],[9.5,76.0],[10.0,76.5],[11.5,74.5],[14.0,74.5],[15.0,73.5],[18.0,72.5],[21.0,72.5],[22.0,68.5],[24.0,68.0],[25.0,68.5],[26.0,66.5],[23.5,57.5],[22.5,59.5],[21.5,60.0],[18.5,57.0],[16.5,53.0],[13.5,50.5],[12.5,45.5],[11.5,43.5],[11.0,43.5],[11.5,44.5],[12.0,44.0],[13.0,45.0],[15.0,51.0],[18.0,56.5],[20.0,58.5],[22.0,59.5],[24.5,56.0],[25.0,57.0],[25.5,56.5],[24.0,54.0],[26.0,50.5],[29.5,47.5],[28.5,47.5],[29.0,46.0],[33.0,38.0],[35.0,35.5],[37.5,37.5],[39.5,41.5],[40.0,40.5],[41.0,40.5],[41.5,41.5],[42.5,41.5],[44.0,43.5],[44.5,42.0],[43.5,40.0],[43.0,40.5],[43.5,42.5],[42.0,44.0],[44.0,46.5],[46.0,50.5],[47.5,51.5],[45.0,46.5],[43.0,44.5],[41.5,44.5],[41.0,44.0],[39.0,46.0],[36.0,53.0],[38.5,60.5],[37.0,64.0],[38.0,65.0],[44.0,60.0],[48.0,58.5],[50.0,57.0],[54.0,57.0],[57.0,60.0],[58.0,62.0],[60.0,63.5],[67.0,76.0],[70.0,84.0],[73.0,96.0],[74.5,107.0],[73.0,114.0],[73.5,118.0],[72.0,130.0],[70.0,133.0],[67.5,142.0],[67.0,143.0],[66.5,141.0],[66.0,143.0],[66.5,145.0],[71.5,155.0],[72.0,158.0],[71.5,160.0],[70.5,161.0],[68.5,161.0],[67.5,163.0],[66.5,163.0],[65.5,166.0],[64.5,163.0],[62.5,163.0],[61.5,161.0],[60.5,161.0],[59.5,162.0],[58.5,161.0],[57.5,158.0],[56.5,162.0],[56.0,161.0],[58.0,154.0],[57.5,152.0],[56.5,150.0],[55.0,154.0],[53.5,148.0],[52.0,144.0],[50.5,142.0],[47.0,142.0],[46.5,141.5],[46.0,142.0],[45.0,141.5],[44.0,142.0],[43.0,144.0],[42.0,141.0],[38.0,141.5],[36.0,140.5],[34.5,138.0],[33.0,131.5],[32.0,130.0],[31.5,130.5],[30.5,130.0],[30.5,131.0],[31.0,131.5],[32.0,131.0],[33.0,132.0],[36.0,141.5],[38.0,141.5],[41.0,142.5],[42.0,142.5],[43.0,141.0],[43.5,141.5],[44.5,145.0],[43.5,148.0],[42.0,140.0],[41.0,141.0],[39.5,140.0],[38.5,141.5],[37.0,140.5],[36.5,136.5],[36.0,136.0],[35.0,137.0],[34.5,136.5],[33.5,135.0],[33.0,131.5],[32.0,130.5],[30.0,131.5],[29.5,130.0],[28.5,130.5],[27.5,128.0],[27.0,128.5],[26.0,127.5],[25.0,122.0],[24.0,122.5],[23.0,120.5],[19.5,120.0],[18.5,108.5],[17.5,107.0],[15.5,109.0],[15.0,108.5],[14.5,110.0],[12.5,109.0],[12.0,109.5],[9.0,105.0],[8.0,104.5],[4.5,100.5],[2.5,102.0],[2.0,103.5],[1.3,103.8],[2.0,103.5],[3.5,101.0],[7.5,99.5],[8.5,97.5],[9.5,98.5],[10.5,98.0],[13.5,100.0],[15.5,100.0],[18.5,96.5],[19.5,94.0],[21.5,92.5],[22.5,91.0],[22.0,89.5],[21.0,89.5],[20.0,92.0],[20.5,92.5],[22.5,91.0],[24.0,92.0],[24.5,91.0],[24.0,89.0],[23.0,88.0],[22.5,88.5],[21.0,86.5],[20.0,86.5],[19.0,85.5],[24.0,121.0],[25.0,121.5],[26.0,120.0],[30.0,122.5],[30.5,122.0],[30.0,121.5],[29.5,122.0],[32.5,121.5],[33.5,120.0],[34.0,120.5],[34.5,119.5],[35.0,120.5],[36.0,120.5],[37.5,122.5],[38.0,121.5],[39.0,121.5],[40.0,124.0],[40.5,122.5],[40.0,121.0],[39.0,122.5],[40.5,125.0],[41.0,124.5],[40.0,122.0],[40.5,121.0],[41.5,121.0],[43.0,122.5],[44.0,122.5],[44.5,123.5],[44.0,124.5],[45.0,132.0],[46.5,138.0],[49.5,140.5],[55.0,141.5],[57.0,144.0],[58.0,143.0],[60.0,143.0],[61.0,147.0],[63.0,148.5],[66.0,154.0],[68.0,156.0],[69.0,158.0],[70.0,158.0],[71.1,28.2]],
-  [[35.8,-5.4],[34.0,-2.0],[31.5,8.5],[30.0,12.5],[30.5,15.5],[30.0,16.0],[30.0,27.0],[29.5,28.5],[31.5,32.0],[27.5,33.5],[25.5,33.5],[22.5,32.0],[21.5,38.5],[20.5,39.5],[16.5,41.5],[15.5,41.5],[12.5,43.5],[11.5,43.5],[9.0,50.5],[11.5,51.0],[11.0,50.0],[13.5,44.5],[15.5,41.5],[16.5,41.0],[17.0,41.5],[17.5,41.0],[15.0,40.0],[15.0,41.5],[12.5,47.0],[11.5,52.0],[10.0,51.5],[10.5,52.5],[11.5,51.5],[11.5,49.5],[10.5,46.0],[11.5,43.5],[11.5,42.0],[10.0,42.5],[8.5,40.5],[7.5,41.5],[1.5,41.5],[-0.5,40.0],[-2.5,41.0],[-5.5,39.5],[-9.5,40.5],[-14.5,40.5],[-15.5,40.0],[-19.5,34.5],[-20.5,34.5],[-21.5,35.5],[-24.5,35.0],[-26.5,32.5],[-27.5,32.5],[-30.5,30.5],[-34.5,26.0],[-34.8,20.0],[-34.5,18.5],[-33.5,17.5],[-32.0,18.5],[-31.0,17.5],[-28.0,16.5],[-25.5,14.0],[-23.5,14.5],[-21.5,14.0],[-20.5,14.5],[-19.5,13.0],[-17.0,11.0],[-16.0,12.0],[-13.0,12.0],[-11.0,14.5],[-7.0,15.5],[-5.0,14.5],[-2.0,10.0],[-0.5,8.5],[0.5,8.5],[2.0,6.5],[3.5,6.5],[6.5,4.5],[8.5,4.5],[9.5,4.0],[10.0,3.0],[7.5,5.0],[4.5,6.0],[1.5,8.5],[-0.5,7.5],[-5.0,11.5],[-6.5,11.0],[-8.0,11.5],[-11.0,15.0],[-12.5,14.5],[-15.5,17.5],[-17.5,16.5],[-17.5,15.0],[-16.0,14.5],[-15.0,13.5],[-15.0,12.5],[-13.0,10.5],[-14.0,13.5],[-19.0,18.5],[-23.0,20.5],[-24.0,21.5],[-24.5,23.5],[-20.5,25.5],[-19.0,27.0],[-13.5,29.5],[-10.0,29.5],[-9.0,28.5],[-7.0,28.0],[-2.0,30.5],[1.0,31.0],[4.5,30.5],[7.5,31.5],[10.5,31.5],[13.0,33.0],[16.0,33.0],[18.0,34.0],[21.0,33.5],[28.5,33.5],[30.0,32.5],[30.5,31.5],[31.5,31.5],[31.0,32.5],[30.0,32.5],[33.0,28.5],[33.0,27.5],[32.0,26.5],[33.0,24.5],[33.0,20.0],[38.0,12.0],[38.0,11.5],[37.0,11.5],[33.0,7.0],[33.0,2.5],[34.5,-0.5],[35.8,-5.4]],
-  [[71.5,-156.0],[70.0,-142.0],[69.2,-141.0],[60.0,-141.0],[58.5,-152.0],[58.0,-154.0],[57.0,-152.0],[55.5,-161.0],[54.0,-166.0],[57.0,-154.0],[58.0,-152.0],[59.0,-152.0],[60.0,-146.0],[61.0,-148.0],[63.0,-141.0],[63.5,-136.0],[65.0,-130.0],[64.5,-128.0],[63.0,-128.0],[62.0,-130.0],[60.5,-130.0],[59.0,-134.0],[57.5,-134.0],[56.0,-130.0],[54.5,-130.0],[53.0,-128.0],[51.5,-128.0],[49.5,-124.0],[39.0,-124.0],[37.5,-122.0],[36.5,-122.0],[36.0,-121.0],[35.0,-121.0],[33.0,-117.0],[32.0,-117.0],[31.0,-114.0],[28.0,-114.0],[26.0,-110.0],[24.0,-110.0],[22.5,-106.0],[22.0,-106.0],[20.5,-104.0],[19.0,-104.0],[15.0,-96.0],[14.0,-90.0],[14.5,-89.0],[14.0,-88.0],[15.5,-84.0],[17.0,-89.0],[18.5,-88.0],[18.0,-92.0],[19.0,-96.0],[20.0,-97.0],[21.0,-97.0],[22.0,-98.0],[24.0,-98.0],[25.0,-97.0],[28.0,-97.0],[29.5,-94.0],[30.0,-94.0],[29.0,-89.0],[29.5,-88.0],[32.0,-88.0],[32.5,-86.0],[32.0,-84.0],[31.0,-84.0],[30.0,-81.0],[30.5,-82.0],[31.0,-82.0],[31.5,-80.0],[30.5,-80.0],[29.5,-81.0],[29.0,-80.0],[25.0,-80.0],[27.0,-83.0],[28.0,-83.0],[28.5,-84.0],[30.0,-83.0],[30.5,-84.0],[29.5,-90.0],[32.5,-90.0],[33.0,-88.0],[34.0,-88.0],[34.5,-87.0],[36.5,-76.0],[37.0,-76.0],[38.5,-74.0],[40.5,-74.0],[41.5,-70.0],[43.5,-70.0],[44.0,-68.0],[44.5,-68.0],[45.5,-66.0],[46.0,-66.0],[47.0,-53.0],[48.0,-53.0],[50.0,-56.0],[52.0,-56.0],[54.0,-58.0],[56.0,-62.0],[57.0,-62.0],[58.0,-64.0],[60.0,-64.0],[62.0,-66.0],[63.0,-64.0],[64.0,-66.0],[66.0,-60.0],[67.0,-64.0],[68.0,-66.0],[69.0,-66.0],[71.0,-70.0],[72.0,-74.0],[73.0,-80.0],[73.0,-90.0],[72.0,-92.0],[69.0,-84.0],[68.0,-84.0],[67.0,-82.0],[64.0,-82.0],[63.0,-80.0],[61.0,-80.0],[60.0,-78.0],[59.0,-78.0],[58.0,-76.0],[56.0,-76.0],[55.0,-74.0],[54.0,-74.0],[53.0,-72.0],[52.0,-72.0],[51.0,-68.0],[50.0,-66.0],[49.0,-66.0],[48.5,-64.0],[47.5,-68.0],[45.5,-72.0],[43.0,-82.0],[43.5,-84.0],[44.0,-84.0],[45.0,-80.0],[47.5,-90.0],[47.0,-92.0],[46.5,-92.0],[45.0,-88.0],[44.0,-88.0],[43.5,-87.0],[42.5,-88.0],[41.5,-88.0],[41.0,-86.0],[44.0,-86.0],[42.5,-80.0],[42.0,-80.0],[41.0,-83.0],[40.0,-80.0],[39.5,-80.0],[38.5,-75.0],[38.0,-76.0],[38.5,-77.0],[39.0,-74.0],[40.5,-74.0],[41.0,-72.0],[47.0,-60.0],[48.0,-60.0],[50.0,-64.0],[51.0,-56.0],[53.0,-56.0],[56.0,-62.0],[57.0,-62.0],[58.0,-64.0],[60.0,-64.0],[61.0,-66.0],[62.0,-66.0],[63.0,-64.0],[64.0,-66.0],[69.0,-56.0],[71.0,-56.0],[72.0,-58.0],[80.0,-90.0],[81.0,-88.0],[84.0,-68.0],[81.0,-50.0],[80.0,-46.0],[78.0,-42.0],[72.0,-70.0],[71.5,-156.0]],
-  [[12.5,-72.0],[11.5,-70.0],[10.5,-63.0],[9.5,-62.0],[8.5,-62.0],[7.5,-60.0],[6.5,-61.0],[4.5,-52.0],[2.5,-50.0],[-0.5,-50.0],[-2.5,-44.0],[-3.5,-37.0],[-4.5,-37.0],[-5.5,-35.5],[-6.5,-35.0],[-8.5,-35.0],[-9.5,-37.0],[-12.5,-38.0],[-13.5,-39.0],[-17.5,-39.0],[-21.5,-41.0],[-24.5,-47.5],[-25.5,-48.5],[-27.5,-48.5],[-29.5,-50.0],[-30.5,-52.0],[-31.5,-52.0],[-33.5,-54.0],[-34.5,-56.5],[-37.5,-58.5],[-38.5,-61.0],[-43.5,-66.0],[-46.5,-67.5],[-48.5,-67.5],[-53.5,-70.5],[-54.0,-68.0],[-51.0,-68.0],[-50.0,-67.0],[-47.0,-68.0],[-45.0,-67.5],[-40.0,-67.5],[-35.0,-58.0],[-34.0,-58.0],[-31.0,-52.0],[-30.0,-52.0],[-29.0,-50.0],[-28.0,-49.5],[-27.0,-50.0],[-26.0,-48.0],[-25.0,-48.0],[-21.0,-41.0],[-18.0,-39.0],[-12.0,-38.5],[-9.0,-37.0],[-6.0,-37.0],[-4.0,-38.5],[-3.0,-42.5],[-1.0,-47.0],[1.0,-50.0],[2.0,-50.0],[3.0,-52.0],[4.0,-52.0],[5.0,-56.0],[8.0,-62.0],[10.0,-62.0],[12.5,-72.0]],
-  [[-13.5,136.5],[-13.0,136.0],[-13.0,130.0],[-13.5,128.0],[-17.0,122.5],[-18.5,122.0],[-22.5,114.0],[-27.0,113.5],[-29.5,115.0],[-32.0,115.5],[-33.0,116.5],[-33.5,116.0],[-33.0,120.0],[-33.5,121.0],[-32.5,124.0],[-32.5,128.0],[-31.5,128.0],[-31.5,131.5],[-32.5,134.0],[-32.0,136.5],[-33.0,136.5],[-33.5,138.5],[-35.5,138.0],[-37.0,140.0],[-38.0,140.0],[-38.5,141.5],[-37.5,144.5],[-38.5,146.0],[-36.5,149.5],[-34.0,151.5],[-29.0,153.5],[-23.5,152.5],[-22.5,150.5],[-19.5,148.5],[-17.5,146.0],[-15.5,145.5],[-15.0,144.5],[-14.5,145.0],[-14.0,144.0],[-14.0,141.5],[-14.5,141.0],[-13.5,136.5]],
-  [[83.6,-30.0],[81.5,-18.0],[80.5,-18.0],[79.5,-20.0],[77.5,-17.0],[76.5,-19.0],[75.5,-19.0],[73.5,-22.0],[72.5,-26.0],[71.5,-26.0],[70.5,-27.5],[68.0,-24.0],[67.5,-20.0],[69.0,-14.0],[70.0,-14.0],[70.5,-16.0],[71.0,-14.0],[71.5,-14.0],[72.0,-18.0],[73.5,-22.0],[74.0,-22.0],[74.5,-20.0],[75.0,-20.0],[75.5,-22.0],[74.5,-26.0],[75.5,-30.0],[76.0,-30.0],[77.0,-26.0],[79.0,-22.0],[80.0,-22.0],[82.5,-38.0],[83.0,-38.0],[83.6,-30.0]],
-  [[34.0,131.0],[35.5,135.0],[35.5,138.0],[35.0,139.0],[36.0,140.5],[37.0,140.5],[39.5,142.0],[41.0,141.5],[42.0,140.0],[43.5,141.5],[44.0,144.5],[44.5,143.5],[43.5,141.0],[42.5,142.5],[41.5,141.0],[39.5,142.0],[37.0,140.5],[36.5,136.5],[35.0,137.0],[34.0,136.5],[33.0,131.5],[34.0,131.0]],
-  [[44.0,141.0],[42.5,142.0],[44.0,145.0],[45.5,142.0],[44.0,141.0]],
-  [[34.0,131.0],[31.5,130.5],[32.0,131.5],[34.0,131.0]],
-  [[34.0,134.0],[33.0,132.5],[34.0,135.0],[34.0,134.0]],
-  [[38.5,124.5],[34.0,126.5],[34.5,129.5],[38.5,128.5],[38.5,124.5]],
-  [[25.5,122.0],[22.0,120.5],[22.0,121.0],[25.5,122.0]],
-  [[58.5,-3.0],[57.5,-6.0],[51.5,-5.0],[50.0,-4.0],[50.0,-0.5],[51.0,1.5],[52.5,1.5],[55.5,0.0],[58.5,-3.0]],
-  [[66.5,-24.0],[63.5,-24.0],[63.5,-14.0],[66.0,-13.0],[66.5,-24.0]],
-  [[5.5,95.5],[3.0,100.0],[0.0,103.0],[-1.0,102.5],[-2.0,101.0],[-4.0,104.5],[-5.5,105.5],[-4.0,102.0],[-2.5,100.5],[1.5,99.5],[3.0,98.5],[5.5,95.5]],
-  [[7.5,117.5],[6.0,116.0],[4.5,118.5],[3.0,117.5],[1.5,110.5],[0.5,109.5],[1.0,109.0],[2.5,111.0],[4.0,117.5],[5.5,118.0],[7.5,117.5]],
-  [[9.8,80.5],[8.0,79.8],[6.5,81.0],[7.0,82.5],[9.8,80.5]],
-  [[-12.5,49.5],[-17.0,44.5],[-22.0,43.5],[-25.5,44.5],[-25.5,47.5],[-20.0,48.5],[-17.0,50.0],[-14.0,50.5],[-12.5,49.5]],
-  [[18.5,122.0],[17.5,120.5],[16.5,120.5],[14.5,121.5],[13.5,123.0],[14.0,124.0],[16.0,122.5],[18.5,122.0]],
-  [[23.0,-84.5],[22.5,-84.0],[22.0,-80.5],[22.5,-80.0],[23.0,-84.5]],
-  [[-40.5,172.5],[-43.5,171.0],[-46.5,168.5],[-46.0,169.5],[-43.0,172.0],[-40.5,172.5]],
-  [[-34.5,173.0],[-37.5,178.5],[-39.0,177.0],[-38.5,175.0],[-34.5,173.0]],
-];
-
-function drawContinent(pts,W,H,fill,stroke,lw){
-  if(!mctx || pts.length<3) return;
-  mctx.beginPath(); let first=true;
-  for(const[la,lo]of pts){
-    const[x,y]=ll(la,lo,W,H);
-    if(x<-20||x>W+20||y<-20||y>H+20){first=true;continue;}
-    if(first){mctx.moveTo(x,y);first=false;} else mctx.lineTo(x,y);
-  }
-  mctx.closePath();
-  mctx.fillStyle   = fill   || 'rgba(170,160,225,.30)';
-  mctx.strokeStyle = stroke || 'rgba(110,90,200,.50)';
-  mctx.lineWidth   = lw     || 0.7;
-  mctx.fill(); mctx.stroke();
-}
-function drawContinents(W,H){
-  const iF='rgba(170,160,225,.22)', iS='rgba(110,90,200,.38)';
-  CONTINENTS.slice(0,6).forEach(pts=>drawContinent(pts,W,H));
-  CONTINENTS.slice(6).forEach(pts=>drawContinent(pts,W,H,iF,iS,0.5));
-}
-
-function drawMap(){
+let lastMap = 0;
+function loopMap(ts) {
   try {
-    if(!mc||!mctx) return;
-    const W=mc.width, H=mc.height;
-    if(W===0||H===0) return;
-    if(!mc._bgCache || mc._bgCache.w!==W || mc._bgCache.h!==H){
-      const oc=document.createElement('canvas'); oc.width=W; oc.height=H;
-      const octx=oc.getContext('2d');
-      const bg=octx.createLinearGradient(0,0,W,H);
-      bg.addColorStop(0,'#E8EDFF'); bg.addColorStop(0.5,'#DDE4FA'); bg.addColorStop(1,'#D8E2F8');
-      octx.fillStyle=bg; octx.fillRect(0,0,W,H);
-      octx.setLineDash([2,4]); octx.strokeStyle='rgba(91,63,217,.08)'; octx.lineWidth=.5;
-      for(let la=-60;la<=90;la+=30){octx.beginPath();const[,y]=ll(la,0,W,H);octx.moveTo(0,y);octx.lineTo(W,y);octx.stroke();}
-      for(let lo=-180;lo<=180;lo+=30){octx.beginPath();const[x]=ll(0,lo,W,H);octx.moveTo(x,0);octx.lineTo(x,H);octx.stroke();}
-      octx.setLineDash([]); octx.strokeStyle='rgba(91,63,217,.14)'; octx.lineWidth=.7;
-      octx.beginPath();const[,eq]=ll(0,0,W,H);octx.moveTo(0,eq);octx.lineTo(W,eq);octx.stroke();
-      octx.beginPath();const[pm]=ll(0,0,W,H);octx.moveTo(pm,0);octx.lineTo(pm,H);octx.stroke();
-      octx.setLineDash([]);
-      const _bak=mctx; mctx=octx; drawContinents(W,H); mctx=_bak;
-      mc._bgCache={canvas:oc, w:W, h:H};
-    }
-    mctx.clearRect(0,0,W,H); mctx.drawImage(mc._bgCache.canvas,0,0);
-    BGCIT.forEach(([la,lo])=>{
-      const[x,y]=ll(la,lo,W,H); if(x<0||x>W||y<0||y>H) return;
-      mctx.fillStyle='rgba(91,63,217,.28)'; mctx.beginPath(); mctx.arc(x,y,1.4,0,Math.PI*2); mctx.fill();
-    });
-    for(let i=0;i<TOUR.length-1;i++){
-      const pts2=gc(TOUR[i].lat,TOUR[i].lng,TOUR[i+1].lat,TOUR[i+1].lng,60);
-      const s2=[];let c2=[];
-      pts2.forEach(([la,lo],j)=>{if(j>0&&Math.abs(lo-pts2[j-1][1])>180){s2.push(c2);c2=[];}c2.push([la,lo]);});
-      s2.push(c2);
-      s2.forEach(seg=>{
-        if(seg.length<2) return;
-        mctx.beginPath(); let ff=true;
-        seg.forEach(([la,lo])=>{const[x,y]=ll(la,lo,W,H);if(ff){mctx.moveTo(x,y);ff=false;}else mctx.lineTo(x,y);});
-        mctx.strokeStyle='rgba(91,63,217,.14)'; mctx.lineWidth=.6; mctx.setLineDash([2,8]); mctx.stroke(); mctx.setLineDash([]);
-      });
-    }
-    const pwr=getPower(), lw=1.4+(pwr/100)*2, glow=6+(pwr/100)*12;
-    const pts=gc(routeFrom.lat,routeFrom.lng,routeTo.lat,routeTo.lng,120);
-    const segs=[];let cur=[];
-    pts.forEach(([la,lo],j)=>{if(j>0&&Math.abs(lo-pts[j-1][1])>180){segs.push(cur);cur=[];}cur.push([la,lo]);});
-    segs.push(cur);
-    segs.forEach(seg=>{
-      if(seg.length<2) return;
-      mctx.beginPath(); let ff=true;
-      seg.forEach(([la,lo])=>{const[x,y]=ll(la,lo,W,H);if(ff){mctx.moveTo(x,y);ff=false;}else mctx.lineTo(x,y);});
-      mctx.shadowBlur=glow; mctx.shadowColor=activeMember.color; mctx.strokeStyle=activeMember.color;
-      mctx.lineWidth=lw; mctx.setLineDash([5,5]); mctx.stroke(); mctx.setLineDash([]); mctx.shadowBlur=0;
-    });
-    TOUR.forEach(v=>{
-      const[x,y]=ll(v.lat,v.lng,W,H); if(x<3||x>W-3||y<3||y>H-3) return;
-      const isTgt=v===targetStop, wasSent=isSent(v), isNext=v.status==='next';
-      const col=isNext?'#5B3FD9':isTgt?activeMember.color:wasSent?'#16A34A':'rgba(91,63,217,.38)';
-      if(isNext||isTgt){mctx.beginPath();mctx.arc(x,y,7+Math.sin(Date.now()/600)*1.5,0,Math.PI*2);mctx.strokeStyle=col+'66';mctx.lineWidth=1.5;mctx.stroke();}
-      mctx.shadowBlur=isNext?12:isTgt?8:0; mctx.shadowColor=col; mctx.fillStyle=col;
-      mctx.beginPath(); mctx.arc(x,y,isNext?4.5:isTgt?4:2,0,Math.PI*2); mctx.fill(); mctx.shadowBlur=0;
-      if(isNext||isTgt){mctx.fillStyle=col;mctx.font=`${isNext?'bold ':''}8px Chakra Petch,monospace`;mctx.fillText(v.city,x+7,y+3);}
-    });
-    if(pts.length>1){
-      const idx=Math.min(Math.floor(planeT*pts.length),pts.length-2);
-      const[pLa,pLo]=pts[idx]; const[px2,py2]=ll(pLa,pLo,W,H);
-      if(px2>=0&&px2<=W&&py2>=0&&py2<=H){
-        const[nx,ny]=ll(pts[idx+1][0],pts[idx+1][1],W,H);
-        const ang=Math.atan2(ny-py2,nx-px2);
-        mctx.save(); mctx.translate(px2,py2); mctx.rotate(ang);
-        mctx.shadowBlur=10; mctx.shadowColor=activeMember.color; mctx.fillStyle=activeMember.color;
-        mctx.beginPath(); mctx.moveTo(9,0); mctx.lineTo(-3,-5); mctx.lineTo(-1,0); mctx.lineTo(-3,5);
-        mctx.closePath(); mctx.fill(); mctx.shadowBlur=0; mctx.restore();
-      }
-    }
-  } catch(e){ console.warn('[Map] drawMap failed:', e); }
-}
-
-let lastMap=0;
-function loopMap(ts){
-  try {
-    if(!mc||!mctx){requestAnimationFrame(loopMap);return;}
-    if(ts-lastMap>100){
-      planeT+=.005*planeDir;
-      if(planeT>=1){planeT=1;planeDir=-1;} if(planeT<=0){planeT=0;planeDir=1;}
-      lastMap=ts; drawMap();
+    if (!mapRenderer) { requestAnimationFrame(loopMap); return; }
+    if (ts - lastMap > 100) {
+      planeT += 0.005 * planeDir;
+      if (planeT >= 1) { planeT = 1; planeDir = -1; }
+      if (planeT <= 0) { planeT = 0; planeDir  =  1; }
+      lastMap = ts;
+      TOUR.forEach(v => { v._sent = isSent(v); });
+      mapRenderer.renderDynamicLayer({ TOUR, routeFrom, routeTo, targetStop, activeMember, planeT, getPower });
     }
     requestAnimationFrame(loopMap);
-  } catch (e) { console.warn('[Map] Loop error:', e); }
-}
-
-function setRoute(from,to){
-  try {
-    routeFrom=from; routeTo=to;
-    const d=Math.round(hav(from.lat,from.lng,to.lat,to.lng));
-    const b=Math.round(brng(from.lat,from.lng,to.lat,to.lng));
-    setText('routeLabel', `${from.city.toUpperCase()} → ${to.city.toUpperCase()}`);
-    setText('mapDistVal', d.toLocaleString()+' km');
-    setText('cDist', d.toLocaleString()+' km');
-    setText('cDeg', b+'°'); setText('cDir', blbl(b));
-    rotateNeedle(b-devHeading);
-  } catch (e) { console.warn('[Map] setRoute failed:', e); }
+  } catch(e) { console.warn('[Map] Loop error:', e); }
 }
 
 // ════════════════════════════════════════════════
 // GEOLOCATION → COMPASS
 // ════════════════════════════════════════════════
-const GEO_KEY='bts_lr_geo';
-try{ const g=JSON.parse(localStorage.getItem(GEO_KEY)||'null'); if(g){userLat=g.lat;userLng=g.lng;geoGranted=true;} } catch(e){}
+const GEO_KEY = 'bts_lr_geo';
+try { const g = JSON.parse(localStorage.getItem(GEO_KEY)||'null'); if (g) { userLat = g.lat; userLng = g.lng; geoGranted = true; } } catch(e) {}
 
-function updateCompassFromUser(){
+function updateCompassFromUser() {
   try {
-    if(!userLat||!geoGranted) return;
-    const v=targetStop;
-    const d=Math.round(hav(userLat,userLng,v.lat,v.lng));
-    const b=Math.round(brng(userLat,userLng,v.lat,v.lng));
+    if (!userLat || !geoGranted) return;
+    const v = targetStop;
+    const d = Math.round(hav(userLat, userLng, v.lat, v.lng));
+    const b = Math.round(brng(userLat, userLng, v.lat, v.lng));
     setText('cDeg', b+'°'); setText('cDir', blbl(b)); setText('cDist', d.toLocaleString()+' km');
-    rotateNeedle(b-devHeading);
-    const lbl=getEl('compassFromLabel');
-    if(lbl){
-      lbl.innerHTML=`<span class="txt-jp">📍 あなた → ${v.city} (${v.venue})</span><span class="txt-en" style="display:${lang==='en'?'':'none'}">📍 You → ${v.city} (${v.venue})</span>`;
-      lbl.style.color='var(--dim2)';
-    }
-    setRoute({lat:userLat,lng:userLng,city:'You',country:''},v);
-  } catch (e) { console.warn('[Geo] updateCompassFromUser failed:', e); }
+    rotateNeedle(b - devHeading);
+    const lbl = getEl('compassFromLabel');
+    if (lbl) { lbl.innerHTML = `<span class="txt-jp">📍 あなた → ${v.city} (${v.venue})</span><span class="txt-en" style="display:${lang==='en'?'':'none'}">📍 You → ${v.city} (${v.venue})</span>`; lbl.style.color = 'var(--dim2)'; }
+    setRoute({lat:userLat, lng:userLng, city:'You', country:''}, v);
+  } catch(e) { console.warn('[Geo] updateCompassFromUser failed:', e); }
 }
 
-function requestGeo(){
+function requestGeo() {
   try {
-    const btn=getEl('geoBtn'), lbl=getEl('compassFromLabel');
-    if(!navigator.geolocation){
-      if(lbl) lbl.innerHTML=`<span class="txt-jp">位置情報非対応</span><span class="txt-en" style="display:${lang==='en'?'':'none'}">Not supported</span>`;
-      return;
-    }
-    if(btn){ btn.disabled=true; btn.style.opacity='0.6'; btn.innerHTML=lang==='jp'?'<span>📍 取得中…</span>':'<span>📍 Locating…</span>'; }
-    if(lbl) lbl.innerHTML=`<span class="txt-jp">位置情報を取得中…</span><span class="txt-en" style="display:${lang==='en'?'':'none'}">Locating…</span>`;
-    if(location.protocol!=='https:'&&location.hostname!=='localhost'){
-      if(lbl) lbl.innerHTML=`<span class="txt-jp">HTTPS環境が必要です</span><span class="txt-en" style="display:${lang==='en'?'':'none'}">Requires HTTPS</span>`;
-      if(btn){btn.disabled=false;btn.style.opacity='1';} return;
+    const btn = getEl('geoBtn'), lbl = getEl('compassFromLabel');
+    if (!navigator.geolocation) { if (lbl) lbl.innerHTML = `<span class="txt-jp">位置情報非対応</span><span class="txt-en" style="display:${lang==='en'?'':'none'}">Not supported</span>`; return; }
+    if (btn) { btn.disabled = true; btn.style.opacity = '0.6'; btn.innerHTML = lang==='jp' ? '<span>📍 取得中…</span>' : '<span>📍 Locating…</span>'; }
+    if (lbl) lbl.innerHTML = `<span class="txt-jp">位置情報を取得中…</span><span class="txt-en" style="display:${lang==='en'?'':'none'}">Locating…</span>`;
+    if (location.protocol !== 'https:' && location.hostname !== 'localhost') {
+      if (lbl) lbl.innerHTML = `<span class="txt-jp">HTTPS環境が必要です</span><span class="txt-en" style="display:${lang==='en'?'':'none'}">Requires HTTPS</span>`;
+      if (btn) { btn.disabled = false; btn.style.opacity = '1'; } return;
     }
     navigator.geolocation.getCurrentPosition(
-      pos=>{
-        userLat=pos.coords.latitude; userLng=pos.coords.longitude; geoGranted=true;
-        try{localStorage.setItem(GEO_KEY,JSON.stringify({lat:userLat,lng:userLng}));}catch(_){}
+      pos => {
+        userLat = pos.coords.latitude; userLng = pos.coords.longitude; geoGranted = true;
+        try { localStorage.setItem(GEO_KEY, JSON.stringify({lat:userLat, lng:userLng})); } catch(_) {}
         updateCompassFromUser();
-        if(btn){btn.disabled=false;btn.style.opacity='1';btn.style.borderColor='var(--green)';btn.style.color='var(--green)';btn.innerHTML=lang==='jp'?'<span>📍 現在地で測定</span>':'<span>📍 MY LOCATION ✓</span>';}
+        if (btn) { btn.disabled = false; btn.style.opacity = '1'; btn.style.borderColor = 'var(--green)'; btn.style.color = 'var(--green)'; btn.innerHTML = lang==='jp' ? '<span>📍 現在地で測定</span>' : '<span>📍 MY LOCATION ✓</span>'; }
       },
-      err=>{
-        geoGranted=false;
-        const msg=err.code===1?(lang==='jp'?'位置情報の許可が必要です':'Location permission denied'):(lang==='jp'?'位置情報を取得できません':'Could not get location');
-        if(lbl) lbl.textContent=msg;
-        if(btn){
-          btn.disabled=false;btn.style.opacity='1';btn.style.borderColor='var(--red)';btn.style.color='var(--red)';
-          btn.innerHTML='<span class="txt-jp">📍 現在地で測定</span><span class="txt-en">📍 USE MY LOCATION</span>';
-          setTimeout(()=>{if(btn){btn.style.borderColor='';btn.style.color='';btn.innerHTML='<span class="txt-jp">📍 現在地で測定</span><span class="txt-en">📍 USE MY LOCATION</span>';}},2000);
+      err => {
+        geoGranted = false;
+        const msg = err.code === 1 ? (lang==='jp' ? '位置情報の許可が必要です' : 'Location permission denied') : (lang==='jp' ? '位置情報を取得できません' : 'Could not get location');
+        if (lbl) lbl.textContent = msg;
+        if (btn) {
+          btn.disabled = false; btn.style.opacity = '1'; btn.style.borderColor = 'var(--red)'; btn.style.color = 'var(--red)';
+          btn.innerHTML = '<span class="txt-jp">📍 現在地で測定</span><span class="txt-en">📍 USE MY LOCATION</span>';
+          setTimeout(() => { if (btn) { btn.style.borderColor = ''; btn.style.color = ''; btn.innerHTML = '<span class="txt-jp">📍 現在地で測定</span><span class="txt-en">📍 USE MY LOCATION</span>'; } }, 2000);
         }
         setRoute(routeFrom, targetStop);
       },
       {timeout:10000, maximumAge:300000, enableHighAccuracy:false}
     );
-  } catch (e) {
-    console.warn('[Geo] requestGeo failed:', e);
-    const btn=getEl('geoBtn'); if(btn){btn.disabled=false;btn.style.opacity='1';}
-  }
+  } catch(e) { console.warn('[Geo] requestGeo failed:', e); const btn = getEl('geoBtn'); if (btn) { btn.disabled = false; btn.style.opacity = '1'; } }
 }
 
-function initCompass(){
+function initCompass() {
   try {
-    const ticks=getEl('cTicks');
-    if(ticks){
-      for(let i=0;i<72;i++){
-        const a=i*5,maj=i%9===0,mid=i%3===0,r1=maj?36:mid?38:40,r2=44,rad=toR(a-90);
-        const line=document.createElementNS('http://www.w3.org/2000/svg','line');
-        line.setAttribute('x1',50+r1*Math.cos(rad));line.setAttribute('y1',50+r1*Math.sin(rad));
-        line.setAttribute('x2',50+r2*Math.cos(rad));line.setAttribute('y2',50+r2*Math.sin(rad));
-        line.setAttribute('stroke',maj?'rgba(91,63,217,.5)':mid?'rgba(91,63,217,.2)':'rgba(91,63,217,.08)');
-        line.setAttribute('stroke-width',maj?1.5:.8); ticks.appendChild(line);
+    const ticks = getEl('cTicks');
+    if (ticks) {
+      const toR = d => d * Math.PI / 180;
+      for (let i = 0; i < 72; i++) {
+        const a = i*5, maj = i%9===0, mid = i%3===0, r1 = maj?36:mid?38:40, r2 = 44, rad = toR(a-90);
+        const line = document.createElementNS('http://www.w3.org/2000/svg','line');
+        line.setAttribute('x1', 50+r1*Math.cos(rad)); line.setAttribute('y1', 50+r1*Math.sin(rad));
+        line.setAttribute('x2', 50+r2*Math.cos(rad)); line.setAttribute('y2', 50+r2*Math.sin(rad));
+        line.setAttribute('stroke', maj?'rgba(91,63,217,.5)':mid?'rgba(91,63,217,.2)':'rgba(91,63,217,.08)');
+        line.setAttribute('stroke-width', maj?1.5:.8); ticks.appendChild(line);
       }
     }
-    const geoBtn=getEl('geoBtn'); if(geoBtn) geoBtn.addEventListener('click',requestGeo);
-    if(geoGranted&&userLat){
+    const geoBtn = getEl('geoBtn'); if (geoBtn) geoBtn.addEventListener('click', requestGeo);
+    if (geoGranted && userLat) {
       updateCompassFromUser();
-      if(geoBtn){geoBtn.style.borderColor='var(--green)';geoBtn.style.color='var(--green)';}
+      if (geoBtn) { geoBtn.style.borderColor = 'var(--green)'; geoBtn.style.color = 'var(--green)'; }
     } else {
-      const b=Math.round(brng(TOUR[0].lat,TOUR[0].lng,TOUR[1].lat,TOUR[1].lng));
-      rotateNeedle(b); setText('cDeg',b+'°'); setText('cDir',blbl(b));
-      setText('cDist',Math.round(hav(TOUR[0].lat,TOUR[0].lng,TOUR[1].lat,TOUR[1].lng)).toLocaleString()+' km');
-      const lbl=getEl('compassFromLabel');
-      if(lbl) lbl.innerHTML=`<span class="txt-jp">${TOUR[0].city} → ${TOUR[1].city} (📍タップで現在地から)</span><span class="txt-en" style="display:${lang==='en'?'':'none'}">${TOUR[0].city} → ${TOUR[1].city} (tap 📍 for your location)</span>`;
+      const b = Math.round(brng(TOUR[0].lat, TOUR[0].lng, TOUR[1].lat, TOUR[1].lng));
+      rotateNeedle(b); setText('cDeg', b+'°'); setText('cDir', blbl(b));
+      setText('cDist', Math.round(hav(TOUR[0].lat, TOUR[0].lng, TOUR[1].lat, TOUR[1].lng)).toLocaleString()+' km');
+      const lbl = getEl('compassFromLabel');
+      if (lbl) lbl.innerHTML = `<span class="txt-jp">${TOUR[0].city} → ${TOUR[1].city} (📍タップで現在地から)</span><span class="txt-en" style="display:${lang==='en'?'':'none'}">${TOUR[0].city} → ${TOUR[1].city} (tap 📍 for your location)</span>`;
     }
-    if('DeviceOrientationEvent'in window){
-      window.addEventListener('deviceorientationabsolute',onOrient,true);
-      window.addEventListener('deviceorientation',onOrient,true);
+    if ('DeviceOrientationEvent' in window) {
+      window.addEventListener('deviceorientationabsolute', onOrient, true);
+      window.addEventListener('deviceorientation', onOrient, true);
     }
-  } catch (e) { console.warn('[Compass] Init failed:', e); }
+  } catch(e) { console.warn('[Compass] Init failed:', e); }
 }
 
-function onOrient(e){
+function onOrient(e) {
   try {
-    const h=e.webkitCompassHeading??(e.absolute?-e.alpha:null);
-    if(h!==null){ devHeading=h; rotateNeedle(brng(routeFrom.lat,routeFrom.lng,routeTo.lat,routeTo.lng)-devHeading); }
-  } catch (err) { console.warn('[Compass] Orientation error:', err); }
+    const h = e.webkitCompassHeading ?? (e.absolute ? -e.alpha : null);
+    if (h !== null) { devHeading = h; rotateNeedle(brng(routeFrom.lat, routeFrom.lng, routeTo.lat, routeTo.lng) - devHeading); }
+  } catch(err) { console.warn('[Compass] Orientation error:', err); }
 }
 
-function rotateNeedle(a){
+function rotateNeedle(a) {
   try {
-    const needle=getEl('needle'); if(!needle) return;
-    needle.style.transition='transform .7s cubic-bezier(.4,0,.2,1)';
-    needle.setAttribute('transform',`rotate(${a},50,50)`);
-  } catch (e) { console.warn('[Compass] rotateNeedle failed:', e); }
+    const needle = getEl('needle'); if (!needle) return;
+    needle.style.transition = 'transform .7s cubic-bezier(.4,0,.2,1)';
+    needle.setAttribute('transform', `rotate(${a},50,50)`);
+  } catch(e) { console.warn('[Compass] rotateNeedle failed:', e); }
 }
 
 // ════════════════════════════════════════════════
 // ENERGY RING
 // ════════════════════════════════════════════════
 let ec;
-function initEnergyCanvas(){
-  try { const ecEl=getEl('energyCanvas'); ec=ecEl?ecEl.getContext('2d'):null; }
-  catch (e) { console.warn('[Energy] Init failed:', e); }
-}
-
-function drawEnergy(){
+function initEnergyCanvas() { try { const ecEl = getEl('energyCanvas'); ec = ecEl ? ecEl.getContext('2d') : null; } catch(e) {} }
+function drawEnergy() {
   try {
-    if(!ec) return;
-    const cx=46,cy=46,r=33,W=92,H=92;
+    if (!ec) return;
+    const cx=46, cy=46, r=33, W=92, H=92;
     ec.clearRect(0,0,W,H);
-    ec.fillStyle='rgba(237,233,255,.9)';ec.beginPath();ec.arc(cx,cy,r+9,0,Math.PI*2);ec.fill();
-    ec.beginPath();ec.arc(cx,cy,r,0,Math.PI*2);ec.strokeStyle='rgba(91,63,217,.18)';ec.lineWidth=7;ec.stroke();
-    const p=Math.min(energyCount/120000,1),s=-Math.PI/2;
-    ec.beginPath();ec.arc(cx,cy,r,s,s+p*Math.PI*2);
-    ec.shadowBlur=10;ec.shadowColor=activeMember.color;ec.strokeStyle=activeMember.color;ec.lineWidth=7;ec.lineCap='round';ec.stroke();ec.shadowBlur=0;
-    const ex=cx+r*Math.cos(s+p*Math.PI*2),ey=cy+r*Math.sin(s+p*Math.PI*2);
-    ec.beginPath();ec.arc(ex,ey,4,0,Math.PI*2);
-    ec.fillStyle=activeMember.color;ec.shadowBlur=8;ec.shadowColor=activeMember.color;ec.fill();ec.shadowBlur=0;
-  } catch (e) { console.warn('[Energy] Draw failed:', e); }
+    ec.fillStyle = 'rgba(237,233,255,.9)'; ec.beginPath(); ec.arc(cx,cy,r+9,0,Math.PI*2); ec.fill();
+    ec.beginPath(); ec.arc(cx,cy,r,0,Math.PI*2); ec.strokeStyle = 'rgba(91,63,217,.18)'; ec.lineWidth = 7; ec.stroke();
+    const p = Math.min(energyCount/120000, 1), s = -Math.PI/2;
+    ec.beginPath(); ec.arc(cx,cy,r,s,s+p*Math.PI*2);
+    ec.shadowBlur=10; ec.shadowColor=activeMember.color; ec.strokeStyle=activeMember.color; ec.lineWidth=7; ec.lineCap='round'; ec.stroke(); ec.shadowBlur=0;
+    const ex=cx+r*Math.cos(s+p*Math.PI*2), ey=cy+r*Math.sin(s+p*Math.PI*2);
+    ec.beginPath(); ec.arc(ex,ey,4,0,Math.PI*2); ec.fillStyle=activeMember.color; ec.shadowBlur=8; ec.shadowColor=activeMember.color; ec.fill(); ec.shadowBlur=0;
+  } catch(e) { console.warn('[Energy] Draw failed:', e); }
 }
 
 // ════════════════════════════════════════════════
-// MEMBER SELECTOR (Zone 4)
+// MEMBER SELECTOR
 // ════════════════════════════════════════════════
-function initMemberSel(){
+function initMemberSel() {
   try {
-    const wrap=getEl('memberBtns'); if(!wrap){console.warn('[MemberSel] memberBtns not found');return;}
+    const wrap = getEl('memberBtns'); if (!wrap) return;
     safeClearElement(wrap);
-    MEMBERS.forEach(m=>{
-      const btn=document.createElement('button');
-      btn.className='mbtn'+(m.id===activeMember.id?' sel':'');
-      btn.style.setProperty('--mc',m.color); btn.style.setProperty('--mr',m.rgb);
-      btn.innerHTML=`<div class="mbtn-dot"></div><div class="mbtn-name" data-name-jp="${m.jp||m.name}" data-name-en="${m.name}">${lang==='en'?m.name:(m.jp||m.name)}</div>`;
-      btn.addEventListener('click',()=>{
-        if(isSent(targetStop)) return;
-        activeMember=m;
-        document.querySelectorAll('.mbtn').forEach(b=>{if(b)b.classList.remove('sel');});
+    MEMBERS.forEach(m => {
+      const btn = document.createElement('button');
+      btn.className = 'mbtn' + (m.id === activeMember.id ? ' sel' : '');
+      btn.style.setProperty('--mc', m.color); btn.style.setProperty('--mr', m.rgb);
+      btn.innerHTML = `<div class="mbtn-dot"></div><div class="mbtn-name" data-name-jp="${m.jp||m.name}" data-name-en="${m.name}">${lang==='en'?m.name:(m.jp||m.name)}</div>`;
+      btn.addEventListener('click', () => {
+        if (isSent(targetStop)) return;
+        activeMember = m;
+        document.querySelectorAll('.mbtn').forEach(b => { if (b) b.classList.remove('sel'); });
         btn.classList.add('sel'); applyTheme(m); evaluateSendState();
       });
       wrap.appendChild(btn);
     });
-  } catch (e) { console.error('[MemberSel] Init failed:', e); }
+  } catch(e) { console.error('[MemberSel] Init failed:', e); }
 }
 
-function applyTheme(m){
+function applyTheme(m) {
   try {
-    document.documentElement.style.setProperty('--active',m.color);
-    document.documentElement.style.setProperty('--active-rgb',m.rgb);
-    const cDeg=getEl('cDeg'), showtimeCnt=getEl('showtimeCnt'), sbPower=getEl('sbPower');
-    if(cDeg) cDeg.style.color=m.color;
-    if(showtimeCnt) showtimeCnt.style.color=m.color;
-    if(sbPower) sbPower.style.color=m.color;
+    document.documentElement.style.setProperty('--active', m.color);
+    document.documentElement.style.setProperty('--active-rgb', m.rgb);
+    const cDeg = getEl('cDeg'), showtimeCnt = getEl('showtimeCnt'), sbPower = getEl('sbPower');
+    if (cDeg) cDeg.style.color = m.color;
+    if (showtimeCnt) showtimeCnt.style.color = m.color;
+    if (sbPower) sbPower.style.color = m.color;
     drawEnergy(); updateSendStyle();
-  } catch (e) { console.warn('[Theme] Apply failed:', e); }
+  } catch(e) { console.warn('[Theme] Apply failed:', e); }
 }
 
 // ════════════════════════════════════════════════
-// DAILY MEMBER CHECKIN GRID (Zone 5)
+// DAILY GRID
 // ════════════════════════════════════════════════
-function initDailyGrid(){
+function initDailyGrid() {
   try {
-    const grid=getEl('dailyMembersGrid'); if(!grid){console.warn('[DailyGrid] not found');return;}
+    const grid = getEl('dailyMembersGrid'); if (!grid) return;
     safeClearElement(grid);
-    const todaySelected=dailyData.members[0]||null;
-    MEMBERS.forEach(m=>{
-      const btn=document.createElement('button');
-      btn.id='dmb_'+m.id; btn.style.setProperty('--mc',m.color); btn.style.setProperty('--mr',m.rgb);
-      const isSelected=(m.id===todaySelected), isLocked=todaySelected!==null&&!isSelected;
-      btn.className='dmb'+(isSelected?' checked':'')+(isLocked?' dmb-locked':'');
-      btn.innerHTML=`<div class="dmb-dot"></div><div class="dmb-name" data-name-jp="${m.jp||m.name}" data-name-en="${m.name}">${lang==='en'?m.name:(m.jp||m.name)}</div>`;
-      btn.addEventListener('click',()=>{
-        const result=checkInMember(m.id);
-        if(result.action==='locked'){
-          btn.animate([{transform:'translateX(-3px)'},{transform:'translateX(3px)'},{transform:'translateX(-2px)'},{transform:'translateX(2px)'},{transform:'translateX(0)'}],{duration:250,easing:'ease-out'});
+    const todaySelected = dailyData.members[0] || null;
+    MEMBERS.forEach(m => {
+      const btn = document.createElement('button');
+      btn.id = 'dmb_' + m.id; btn.style.setProperty('--mc', m.color); btn.style.setProperty('--mr', m.rgb);
+      const isSelected = m.id === todaySelected, isLocked = todaySelected !== null && !isSelected;
+      btn.className = 'dmb' + (isSelected ? ' checked' : '') + (isLocked ? ' dmb-locked' : '');
+      btn.innerHTML = `<div class="dmb-dot"></div><div class="dmb-name" data-name-jp="${m.jp||m.name}" data-name-en="${m.name}">${lang==='en'?m.name:(m.jp||m.name)}</div>`;
+      btn.addEventListener('click', () => {
+        const result = checkInMember(m.id);
+        if (result.action === 'locked') {
+          btn.animate([{transform:'translateX(-3px)'},{transform:'translateX(3px)'},{transform:'translateX(-2px)'},{transform:'translateX(2px)'},{transform:'translateX(0)'}], {duration:250, easing:'ease-out'});
           return;
         }
         refreshDailyUI(); refreshStatusBar();
@@ -1054,712 +712,671 @@ function initDailyGrid(){
       grid.appendChild(btn);
     });
     refreshDailyUI();
-  } catch (e) { console.error('[DailyGrid] Init failed:', e); }
+  } catch(e) { console.error('[DailyGrid] Init failed:', e); }
 }
 
-function refreshDailyUI(){
+function refreshDailyUI() {
   try {
     resetDailyIfNeeded();
-    const todaySelected=dailyData.members[0]||null;
-    const selectedMember=todaySelected?MEMBERS.find(m=>m.id===todaySelected):null;
-    MEMBERS.forEach(m=>{
-      const btn=getEl('dmb_'+m.id); if(!btn) return;
-      const isSelected=(m.id===todaySelected), isLocked=todaySelected!==null&&!isSelected;
-      btn.classList.toggle('checked',isSelected); btn.classList.toggle('dmb-locked',isLocked);
-      btn.style.opacity=isLocked?'0.35':'1'; btn.style.cursor=todaySelected!==null?'not-allowed':'pointer';
+    const todaySelected = dailyData.members[0] || null;
+    const selectedMember = todaySelected ? MEMBERS.find(m => m.id === todaySelected) : null;
+    MEMBERS.forEach(m => {
+      const btn = getEl('dmb_' + m.id); if (!btn) return;
+      const isSelected = m.id === todaySelected, isLocked = todaySelected !== null && !isSelected;
+      btn.classList.toggle('checked', isSelected); btn.classList.toggle('dmb-locked', isLocked);
+      btn.style.opacity = isLocked ? '0.35' : '1'; btn.style.cursor = todaySelected !== null ? 'not-allowed' : 'pointer';
     });
-    const countEl=getEl('dailyCount');
-    if(countEl){
-      if(todaySelected&&selectedMember){countEl.textContent=lang==='jp'?`${selectedMember.jp||selectedMember.name} ✓`:`${selectedMember.name} ✓`;countEl.style.color=selectedMember.color;}
-      else{countEl.innerHTML=lang==='jp'?'<span class="txt-jp">未選択</span>':'<span class="txt-en">NOT YET</span>';countEl.style.color='var(--dim)';}
+    const countEl = getEl('dailyCount');
+    if (countEl) {
+      if (todaySelected && selectedMember) { countEl.textContent = lang==='jp' ? `${selectedMember.jp||selectedMember.name} ✓` : `${selectedMember.name} ✓`; countEl.style.color = selectedMember.color; }
+      else { countEl.innerHTML = lang==='jp' ? '<span class="txt-jp">未選択</span>' : '<span class="txt-en">NOT YET</span>'; countEl.style.color = 'var(--dim)'; }
     }
-    const rfill=getEl('rainbowFill');
-    if(rfill){
-      if(todaySelected&&selectedMember){rfill.style.width='100%';rfill.style.setProperty('--fill-color',selectedMember.color);rfill.style.background=selectedMember.color;}
-      else{rfill.style.width='0%';rfill.style.background='';}
+    const rfill = getEl('rainbowFill');
+    if (rfill) {
+      if (todaySelected && selectedMember) { rfill.style.width = '100%'; rfill.style.setProperty('--fill-color', selectedMember.color); rfill.style.background = selectedMember.color; }
+      else { rfill.style.width = '0%'; rfill.style.background = ''; }
     }
-    const rcEl=getEl('rainbowCountEl'); if(rcEl) rcEl.textContent=dailyData.rainbowCount||0;
-    const rc=dailyData.rainbowCount||0, rtEl=getEl('rainbowTitle');
-    if(rtEl){
-      if(rc>=7)      rtEl.textContent=lang==='jp'?'🌈✨ 虹の伝説':'🌈✨ RAINBOW LEGEND';
-      else if(rc>=3) rtEl.textContent=lang==='jp'?'🌈🌈 虹の戦士':'🌈🌈 RAINBOW WARRIOR';
-      else if(rc>=1) rtEl.textContent=lang==='jp'?'🌈 虹の夢':'🌈 RAINBOW DREAMER';
-      else           rtEl.textContent='';
+    const rcEl = getEl('rainbowCountEl'); if (rcEl) rcEl.textContent = dailyData.rainbowCount || 0;
+    const rc = dailyData.rainbowCount || 0, rtEl = getEl('rainbowTitle');
+    if (rtEl) {
+      if (rc >= 7)      rtEl.textContent = lang==='jp' ? '🌈✨ 虹の伝説' : '🌈✨ RAINBOW LEGEND';
+      else if (rc >= 3) rtEl.textContent = lang==='jp' ? '🌈🌈 虹の戦士' : '🌈🌈 RAINBOW WARRIOR';
+      else if (rc >= 1) rtEl.textContent = lang==='jp' ? '🌈 虹の夢'     : '🌈 RAINBOW DREAMER';
+      else              rtEl.textContent = '';
     }
-  } catch (e) { console.warn('[DailyUI] Refresh failed:', e); }
+    // ── デイリーシェアボタン表示制御 ──
+    refreshDailyShareButton();
+  } catch(e) { console.warn('[DailyUI] Refresh failed:', e); }
+}
+
+// ── デイリーシェアボタン表示制御 ────────────────────────────
+function refreshDailyShareButton() {
+  const container = getEl('dailyShareContainer'); if (!container) return;
+  const todaySelected = dailyData.members[0] || null;
+  if (todaySelected) {
+    container.classList.add('visible');
+    const btn = getEl('dailyShareBtn');
+    if (btn) {
+      const m = MEMBERS.find(x => x.id === todaySelected); if (!m) return;
+      btn.style.setProperty('--mc', m.color);
+      btn.textContent = lang==='jp' ? `✦ ${m.jp||m.name}の光をシェア` : `✦ Share ${m.name}'s Light`;
+    }
+  } else {
+    container.classList.remove('visible');
+  }
 }
 
 // ════════════════════════════════════════════════
 // AUDIO EFFECTS
 // ════════════════════════════════════════════════
-let _audioCtx=null;
-function getAudioCtx(){ if(!_audioCtx) _audioCtx=new (window.AudioContext||window.webkitAudioContext)(); return _audioCtx; }
+let _audioCtx = null;
+function getAudioCtx() { if (!_audioCtx) _audioCtx = new (window.AudioContext || window.webkitAudioContext)(); return _audioCtx; }
 
-function playCrowdCheer(duration=4.0, volume=0.18){
+function playCrowdCheer(duration=4.0, volume=0.18) {
   try {
-    const ctx=getAudioCtx(), out=ctx.destination;
-    const bufLen=ctx.sampleRate*duration, buf=ctx.createBuffer(2,bufLen,ctx.sampleRate);
-    for(let ch=0;ch<2;ch++){const d=buf.getChannelData(ch);for(let i=0;i<bufLen;i++)d[i]=(Math.random()*2-1);}
-    const noise=ctx.createBufferSource(); noise.buffer=buf;
-    const bp=ctx.createBiquadFilter(); bp.type='bandpass'; bp.frequency.value=1200; bp.Q.value=0.8;
-    const lp=ctx.createBiquadFilter(); lp.type='lowpass'; lp.frequency.setValueAtTime(3000,ctx.currentTime); lp.frequency.linearRampToValueAtTime(1800,ctx.currentTime+duration*0.7);
-    const gain=ctx.createGain(); gain.gain.setValueAtTime(0,ctx.currentTime); gain.gain.linearRampToValueAtTime(volume,ctx.currentTime+0.5); gain.gain.setValueAtTime(volume,ctx.currentTime+duration*0.6); gain.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+duration);
-    const lfo=ctx.createOscillator(); lfo.frequency.value=0.8; const lfoGain=ctx.createGain(); lfoGain.gain.value=0.3;
+    const ctx = getAudioCtx(), bufLen = ctx.sampleRate * duration, buf = ctx.createBuffer(2, bufLen, ctx.sampleRate);
+    for (let ch = 0; ch < 2; ch++) { const d = buf.getChannelData(ch); for (let i = 0; i < bufLen; i++) d[i] = Math.random()*2-1; }
+    const noise = ctx.createBufferSource(); noise.buffer = buf;
+    const bp = ctx.createBiquadFilter(); bp.type='bandpass'; bp.frequency.value=1200; bp.Q.value=0.8;
+    const lp = ctx.createBiquadFilter(); lp.type='lowpass'; lp.frequency.setValueAtTime(3000,ctx.currentTime); lp.frequency.linearRampToValueAtTime(1800,ctx.currentTime+duration*0.7);
+    const gain = ctx.createGain(); gain.gain.setValueAtTime(0,ctx.currentTime); gain.gain.linearRampToValueAtTime(volume,ctx.currentTime+0.5); gain.gain.setValueAtTime(volume,ctx.currentTime+duration*0.6); gain.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+duration);
+    const lfo = ctx.createOscillator(); lfo.frequency.value=0.8; const lfoGain = ctx.createGain(); lfoGain.gain.value=0.3;
     lfo.connect(lfoGain); lfoGain.connect(gain.gain); lfo.start(); lfo.stop(ctx.currentTime+duration);
-    noise.connect(bp); bp.connect(lp); lp.connect(gain); gain.connect(out); noise.start(); noise.stop(ctx.currentTime+duration);
-  } catch(e){ console.warn('[Audio] Crowd cheer failed:', e.message); }
+    noise.connect(bp); bp.connect(lp); lp.connect(gain); gain.connect(ctx.destination); noise.start(); noise.stop(ctx.currentTime+duration);
+  } catch(e) { console.warn('[Audio] Crowd cheer failed:', e.message); }
 }
 
-function playSendWhoosh(){
+function playSendWhoosh() {
   try {
-    const ctx=getAudioCtx(), dur=0.9, bufLen=ctx.sampleRate*dur, buf=ctx.createBuffer(1,bufLen,ctx.sampleRate);
-    const d=buf.getChannelData(0); for(let i=0;i<bufLen;i++)d[i]=(Math.random()*2-1);
-    const noise=ctx.createBufferSource(); noise.buffer=buf;
-    const hp=ctx.createBiquadFilter(); hp.type='highpass'; hp.frequency.setValueAtTime(4000,ctx.currentTime); hp.frequency.exponentialRampToValueAtTime(8000,ctx.currentTime+dur*0.6);
-    const gain=ctx.createGain(); gain.gain.setValueAtTime(0.22,ctx.currentTime); gain.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+dur);
+    const ctx = getAudioCtx(), dur = 0.9, bufLen = ctx.sampleRate*dur, buf = ctx.createBuffer(1,bufLen,ctx.sampleRate);
+    const d = buf.getChannelData(0); for (let i = 0; i < bufLen; i++) d[i] = Math.random()*2-1;
+    const noise = ctx.createBufferSource(); noise.buffer = buf;
+    const hp = ctx.createBiquadFilter(); hp.type='highpass'; hp.frequency.setValueAtTime(4000,ctx.currentTime); hp.frequency.exponentialRampToValueAtTime(8000,ctx.currentTime+dur*0.6);
+    const gain = ctx.createGain(); gain.gain.setValueAtTime(0.22,ctx.currentTime); gain.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+dur);
     noise.connect(hp); hp.connect(gain); gain.connect(ctx.destination); noise.start(); noise.stop(ctx.currentTime+dur);
-  } catch(e){}
-}
-
-function playChargeSound(){
-  try {
-    const ctx=getAudioCtx(), osc=ctx.createOscillator(), gain=ctx.createGain();
-    osc.type='sine'; osc.frequency.setValueAtTime(440,ctx.currentTime); osc.frequency.exponentialRampToValueAtTime(660,ctx.currentTime+0.15); osc.frequency.exponentialRampToValueAtTime(520,ctx.currentTime+0.4);
-    gain.gain.setValueAtTime(0.15,ctx.currentTime); gain.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+0.5);
-    osc.connect(gain); gain.connect(ctx.destination); osc.start(); osc.stop(ctx.currentTime+0.5);
-  } catch(e){}
+  } catch(e) {}
 }
 
 // ════════════════════════════════════════════════
-// CHARGE EFFECT
+// CHARGE / SEND EFFECTS
 // ════════════════════════════════════════════════
-function showChargeEffect(member){
+function showChargeEffect(member) {
   try {
-    const ov=getEl('chargeOverlay'), canvas=getEl('chargeCanvas'); if(!ov) return;
-    ov.style.setProperty('--charge-color',member.color); ov.style.setProperty('--charge-bg',`rgba(${member.rgb},.08)`);
-    const chargeEmoji=getEl('chargeEmoji');
-    if(chargeEmoji){chargeEmoji.style.color=member.color;chargeEmoji.style.textShadow=`0 0 30px ${member.color}`;}
-    const chargeMember=getEl('chargeMember');
-    if(chargeMember){chargeMember.textContent=lang==='jp'?(member.jp||member.name):member.name;chargeMember.style.color=member.color;}
-    const chargeMsgJP=getEl('chargeMsgJP'), chargeMsgEN=getEl('chargeMsgEN');
-    if(chargeMsgJP) chargeMsgJP.textContent=`${member.jp||member.name}の光をチャージしました`;
-    if(chargeMsgEN) chargeMsgEN.textContent=`${member.name} LIGHT CHARGED`;
-    ov.classList.add('on'); drawChargeParticles(canvas, member.color);
-    setTimeout(()=>{ ov.classList.remove('on'); }, 3000);
-  } catch (e) { console.warn('[ChargeEffect] Failed:', e); }
+    const ov = getEl('chargeOverlay'), canvas = getEl('chargeCanvas'); if (!ov) return;
+    ov.style.setProperty('--charge-color', member.color); ov.style.setProperty('--charge-bg', `rgba(${member.rgb},.08)`);
+    const chargeEmoji = getEl('chargeEmoji'); if (chargeEmoji) { chargeEmoji.style.color = member.color; chargeEmoji.style.textShadow = `0 0 30px ${member.color}`; }
+    const chargeMember = getEl('chargeMember'); if (chargeMember) { chargeMember.textContent = lang==='jp' ? (member.jp||member.name) : member.name; chargeMember.style.color = member.color; }
+    const chargeMsgJP = getEl('chargeMsgJP'), chargeMsgEN = getEl('chargeMsgEN');
+    if (chargeMsgJP) chargeMsgJP.textContent = `${member.jp||member.name}の光をチャージしました`;
+    if (chargeMsgEN) chargeMsgEN.textContent = `${member.name} LIGHT CHARGED`;
+    ov.classList.add('on'); _drawChargeParticles(canvas, member.color);
+    setTimeout(() => ov.classList.remove('on'), 3000);
+  } catch(e) { console.warn('[ChargeEffect] Failed:', e); }
 }
 
-function drawChargeParticles(canvas, color){
+function _drawChargeParticles(canvas, color) {
   try {
-    if(!canvas) return;
-    const W=window.innerWidth, H=window.innerHeight; canvas.width=W; canvas.height=H;
-    const ctx=canvas.getContext('2d'), cx=W/2, cy=H/2;
-    const particles=Array.from({length:40},(_,i)=>{const angle=(i/40)*Math.PI*2,speed=2+Math.random()*3;return{x:cx,y:cy,vx:Math.cos(angle)*speed,vy:Math.sin(angle)*speed,life:1,decay:0.018+Math.random()*0.012,size:3+Math.random()*5};});
+    if (!canvas) return;
+    const W = window.innerWidth, H = window.innerHeight; canvas.width = W; canvas.height = H;
+    const ctx = canvas.getContext('2d'), cx = W/2, cy = H/2;
+    const particles = Array.from({length:40}, (_,i) => { const angle=(i/40)*Math.PI*2, speed=2+Math.random()*3; return {x:cx, y:cy, vx:Math.cos(angle)*speed, vy:Math.sin(angle)*speed, life:1, decay:0.018+Math.random()*0.012, size:3+Math.random()*5}; });
     let raf;
-    function draw(){
-      ctx.clearRect(0,0,W,H); let alive=false;
-      particles.forEach(p=>{
-        if(p.life<=0) return;
-        p.x+=p.vx;p.y+=p.vy;p.vy+=0.04;p.life-=p.decay;
-        ctx.globalAlpha=Math.max(0,p.life);ctx.fillStyle=color;ctx.shadowBlur=12;ctx.shadowColor=color;
-        ctx.beginPath();ctx.arc(p.x,p.y,p.size*p.life,0,Math.PI*2);ctx.fill();
-        if(p.life>0) alive=true;
+    function draw() {
+      ctx.clearRect(0,0,W,H); let alive = false;
+      particles.forEach(p => {
+        if (p.life <= 0) return; p.x+=p.vx; p.y+=p.vy; p.vy+=0.04; p.life-=p.decay;
+        ctx.globalAlpha=Math.max(0,p.life); ctx.fillStyle=color; ctx.shadowBlur=12; ctx.shadowColor=color;
+        ctx.beginPath(); ctx.arc(p.x,p.y,p.size*p.life,0,Math.PI*2); ctx.fill(); if (p.life>0) alive=true;
       });
-      ctx.globalAlpha=1;ctx.shadowBlur=0;
-      if(alive) raf=requestAnimationFrame(draw);
+      ctx.globalAlpha=1; ctx.shadowBlur=0; if (alive) raf=requestAnimationFrame(draw);
     }
-    draw();
-    setTimeout(()=>{cancelAnimationFrame(raf);ctx.clearRect(0,0,W,H);},3000);
-  } catch (e) { console.warn('[ChargeParticles] Failed:', e); }
+    draw(); setTimeout(() => { cancelAnimationFrame(raf); ctx.clearRect(0,0,W,H); }, 3000);
+  } catch(e) { console.warn('[ChargeParticles] Failed:', e); }
 }
 
-// ════════════════════════════════════════════════
-// SEND EFFECT
-// ════════════════════════════════════════════════
-function showSendEffect(member, venueName, dist){
+function showSendEffect(member, venueName, dist) {
   try {
-    const ov=getEl('sendOverlay'), canvas=getEl('sendCanvas'); if(!ov) return;
-    const W=window.innerWidth, H=window.innerHeight;
-    if(canvas){canvas.width=W;canvas.height=H;}
-    ov.style.setProperty('--send-color',member.color);
-    const rgb=member.rgb.split(',').map(x=>parseInt(x));
-    ov.style.setProperty('--send-bg',`rgba(${Math.max(0,rgb[0]-180)},${Math.max(0,rgb[1]-180)},${Math.max(0,rgb[2]-60)},.97)`);
-    const sendOrb=getEl('sendOrb'); if(sendOrb) sendOrb.style.filter=`drop-shadow(0 0 40px ${member.color})`;
-    playSendWhoosh(); drawSendParticles(canvas, member.color); ov.classList.add('on');
-  } catch (e) { console.warn('[SendEffect] Failed:', e); }
+    const ov = getEl('sendOverlay'), canvas = getEl('sendCanvas'); if (!ov) return;
+    const W = window.innerWidth, H = window.innerHeight; if (canvas) { canvas.width=W; canvas.height=H; }
+    ov.style.setProperty('--send-color', member.color);
+    const rgb = member.rgb.split(',').map(x => parseInt(x));
+    ov.style.setProperty('--send-bg', `rgba(${Math.max(0,rgb[0]-180)},${Math.max(0,rgb[1]-180)},${Math.max(0,rgb[2]-60)},.97)`);
+    const sendOrb = getEl('sendOrb'); if (sendOrb) sendOrb.style.filter = `drop-shadow(0 0 40px ${member.color})`;
+    playSendWhoosh(); _drawSendParticles(canvas, member.color); ov.classList.add('on');
+  } catch(e) { console.warn('[SendEffect] Failed:', e); }
 }
 
-function drawSendParticles(canvas, color){
+function _drawSendParticles(canvas, color) {
   try {
-    if(!canvas) return;
+    if (!canvas) return;
     const W=canvas.width, H=canvas.height, ctx=canvas.getContext('2d'), cx=W/2, cy=H*0.42;
-    const streaks=Array.from({length:60},(_,i)=>{const angle=(i/60)*Math.PI*2;return{angle,len:0,maxLen:60+Math.random()*120,speed:3+Math.random()*4,life:1,delay:Math.random()*15};});
-    const sparks=Array.from({length:80},(_,i)=>{const a=(i/80)*Math.PI*2,spd=1+Math.random()*5;return{x:cx,y:cy,vx:Math.cos(a)*spd,vy:Math.sin(a)*spd-2,life:1,decay:.014+Math.random()*.01,size:2+Math.random()*4};});
+    const streaks = Array.from({length:60},(_,i) => { const angle=(i/60)*Math.PI*2; return {angle,len:0,maxLen:60+Math.random()*120,speed:3+Math.random()*4,life:1,delay:Math.random()*15}; });
+    const sparks  = Array.from({length:80},(_,i) => { const a=(i/80)*Math.PI*2,spd=1+Math.random()*5; return {x:cx,y:cy,vx:Math.cos(a)*spd,vy:Math.sin(a)*spd-2,life:1,decay:.014+Math.random()*.01,size:2+Math.random()*4}; });
     let frame=0, raf;
-    function draw(){
+    function draw() {
       try {
         ctx.clearRect(0,0,W,H); frame++;
         const glowR=Math.min(200,frame*3), grd=ctx.createRadialGradient(cx,cy,0,cx,cy,glowR);
-        grd.addColorStop(0,color+'88'); grd.addColorStop(1,'transparent');
-        ctx.fillStyle=grd; ctx.fillRect(0,0,W,H);
-        streaks.forEach(s=>{
-          if(frame<s.delay) return; s.len=Math.min(s.maxLen,s.len+s.speed); s.life=Math.max(0,1-(frame-s.delay)/80);
-          if(s.life<=0) return; ctx.globalAlpha=s.life*.7; ctx.strokeStyle=color; ctx.lineWidth=1.5; ctx.shadowBlur=8; ctx.shadowColor=color;
+        grd.addColorStop(0,color+'88'); grd.addColorStop(1,'transparent'); ctx.fillStyle=grd; ctx.fillRect(0,0,W,H);
+        streaks.forEach(s => {
+          if (frame<s.delay) return; s.len=Math.min(s.maxLen,s.len+s.speed); s.life=Math.max(0,1-(frame-s.delay)/80); if (s.life<=0) return;
+          ctx.globalAlpha=s.life*.7; ctx.strokeStyle=color; ctx.lineWidth=1.5; ctx.shadowBlur=8; ctx.shadowColor=color;
           ctx.beginPath(); ctx.moveTo(cx+Math.cos(s.angle)*20,cy+Math.sin(s.angle)*20); ctx.lineTo(cx+Math.cos(s.angle)*s.len,cy+Math.sin(s.angle)*s.len); ctx.stroke();
         });
-        sparks.forEach(p=>{
-          if(p.life<=0) return; p.x+=p.vx;p.y+=p.vy;p.vy+=0.06;p.life-=p.decay;
+        sparks.forEach(p => {
+          if (p.life<=0) return; p.x+=p.vx; p.y+=p.vy; p.vy+=0.06; p.life-=p.decay;
           ctx.globalAlpha=Math.max(0,p.life*.9); ctx.fillStyle=color; ctx.shadowBlur=10; ctx.shadowColor=color;
           ctx.beginPath(); ctx.arc(p.x,p.y,p.size*p.life,0,Math.PI*2); ctx.fill();
         });
         ctx.globalAlpha=1; ctx.shadowBlur=0;
-        if(frame<120) raf=requestAnimationFrame(draw); else ctx.clearRect(0,0,W,H);
-      } catch (e) { console.warn('[SendParticles] Frame error:', e); }
+        if (frame<120) raf=requestAnimationFrame(draw); else ctx.clearRect(0,0,W,H);
+      } catch(e) { console.warn('[SendParticles] Frame error:', e); }
     }
     draw();
-  } catch (e) { console.warn('[SendParticles] Failed:', e); }
+  } catch(e) { console.warn('[SendParticles] Failed:', e); }
 }
 
 // ════════════════════════════════════════════════
 // COUNTDOWN OVERLAY
 // ════════════════════════════════════════════════
-let countdownTimer=null;
-let countdownShownKey=new Set();
-try{ JSON.parse(localStorage.getItem('fhts_cdshown')||'[]').forEach(k=>countdownShownKey.add(k)); } catch(e){}
+let countdownTimer = null;
+let countdownShownKey = new Set();
+try { JSON.parse(localStorage.getItem('fhts_cdshown')||'[]').forEach(k => countdownShownKey.add(k)); } catch(e) {}
 
-function tryShowCountdown(){
+function openCountdownOverlay(stop, isDemo=false) {
   try {
-    if(!targetStop||!targetStop.st) return;
-    const sk=showKey(targetStop);
-    const diff=new Date(targetStop.st)-new Date();
-    if(diff>0&&diff<=3600000&&!countdownShownKey.has(sk)){
-      countdownShownKey.add(sk);
-      localStorage.setItem('fhts_cdshown',JSON.stringify([...countdownShownKey]));
-      openCountdownOverlay(targetStop);
-    }
-  } catch (e) { console.warn('[Countdown] tryShow failed:', e); }
-}
-
-function openCountdownOverlay(stop, isDemo=false){
-  try {
-    const ov=getEl('countdownOverlay'), canvas=getEl('countdownBg'); if(!ov) return;
-    const sm=sentMem(stop), col=sm?sm.color:activeMember.color;
-    ov.style.setProperty('--cd-color',col);
-    const venueLine=stop.venue&&stop.venue!=='TBA'?`${stop.city} · ${stop.venue}`:stop.city;
-    const cdVenue=getEl('cdVenue'), cdVenueEN=getEl('cdVenueEN');
-    if(cdVenue) cdVenue.textContent=venueLine; if(cdVenueEN) cdVenueEN.textContent=venueLine;
-    const row=getEl('cdPulseRow');
-    if(row){ safeClearElement(row); for(let i=0;i<3;i++){const d=document.createElement('div');d.className='cd-dot';d.style.background=col;row.appendChild(d);} }
-    ov.classList.add('on'); drawCountdownBg(canvas,col); playCrowdCheer(5.0,0.18);
+    const ov = getEl('countdownOverlay'), canvas = getEl('countdownBg'); if (!ov) return;
+    const sm = sentMem(stop), col = sm ? sm.color : activeMember.color;
+    ov.style.setProperty('--cd-color', col);
+    const venueLine = stop.venue && stop.venue !== 'TBA' ? `${stop.city} · ${stop.venue}` : stop.city;
+    const cdVenue = getEl('cdVenue'), cdVenueEN = getEl('cdVenueEN');
+    if (cdVenue) cdVenue.textContent = venueLine; if (cdVenueEN) cdVenueEN.textContent = venueLine;
+    const row = getEl('cdPulseRow');
+    if (row) { safeClearElement(row); for (let i=0;i<3;i++) { const d=document.createElement('div'); d.className='cd-dot'; d.style.background=col; row.appendChild(d); } }
+    ov.classList.add('on'); _drawCountdownBg(canvas, col); playCrowdCheer(5.0, 0.18);
     clearInterval(countdownTimer);
-    function updateTimer(){
-      try {
-        const rem=new Date(stop.st)-new Date(), cdTimer=getEl('cdTimer');
-        if(rem<=0){if(cdTimer)cdTimer.textContent='00:00:00';clearInterval(countdownTimer);if(!isDemo)setTimeout(()=>ov.classList.remove('on'),3000);return;}
-        const h=Math.floor(rem/3600000),m=Math.floor((rem%3600000)/60000),s=Math.floor((rem%60000)/1000);
-        if(cdTimer) cdTimer.textContent=`${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
-      } catch (e) { console.warn('[Countdown] Timer error:', e); }
+    function updateTimer() {
+      const rem = new Date(stop.st) - new Date(), cdTimer = getEl('cdTimer');
+      if (rem <= 0) { if (cdTimer) cdTimer.textContent='00:00:00'; clearInterval(countdownTimer); if (!isDemo) setTimeout(() => ov.classList.remove('on'), 3000); return; }
+      const h=Math.floor(rem/3600000), m=Math.floor((rem%3600000)/60000), s=Math.floor((rem%60000)/1000);
+      if (cdTimer) cdTimer.textContent = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
     }
-    updateTimer(); countdownTimer=setInterval(updateTimer,1000);
-    const closeBtn=getEl('cdClose');
-    if(closeBtn){
-      const closeHandler=()=>{ov.classList.remove('on');clearInterval(countdownTimer);closeBtn.removeEventListener('click',closeHandler);};
-      closeBtn.addEventListener('click',closeHandler);
+    updateTimer(); countdownTimer = setInterval(updateTimer, 1000);
+    const closeBtn = getEl('cdClose');
+    if (closeBtn) {
+      const closeHandler = () => { ov.classList.remove('on'); clearInterval(countdownTimer); closeBtn.removeEventListener('click', closeHandler); };
+      closeBtn.addEventListener('click', closeHandler);
     }
-  } catch (e) { console.error('[Countdown] Open failed:', e); }
+  } catch(e) { console.error('[Countdown] Open failed:', e); }
 }
 
-function drawCountdownBg(canvas, col){
+function _drawCountdownBg(canvas, col) {
   try {
-    if(!canvas) return;
+    if (!canvas) return;
     const W=window.innerWidth, H=window.innerHeight; canvas.width=W; canvas.height=H;
     const ctx=canvas.getContext('2d');
-    const r=parseInt(col.slice(1,3)||'5b',16),g=parseInt(col.slice(3,5)||'3f',16),b=parseInt(col.slice(5,7)||'d9',16);
+    const r=parseInt(col.slice(1,3)||'5b',16), g=parseInt(col.slice(3,5)||'3f',16), b=parseInt(col.slice(5,7)||'d9',16);
     const grd=ctx.createRadialGradient(W/2,H/2,0,W/2,H/2,Math.max(W,H)*0.8);
     grd.addColorStop(0,`rgba(${r},${g},${b},.5)`); grd.addColorStop(0.5,`rgba(${Math.max(0,r-40)},${Math.max(0,g-40)},${Math.max(0,b-40)},.85)`); grd.addColorStop(1,'rgba(9,12,19,.98)');
     ctx.fillStyle=grd; ctx.fillRect(0,0,W,H);
     ctx.fillStyle='rgba(255,255,255,.6)';
-    for(let i=0;i<80;i++){const x=Math.random()*W,y=Math.random()*H,r=Math.random()*1.5;ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.fill();}
-    for(let i=1;i<=4;i++){const rad=i*80;ctx.strokeStyle=`rgba(255,255,255,${0.04/i})`;ctx.lineWidth=1;ctx.beginPath();ctx.arc(W/2,H/2,rad,0,Math.PI*2);ctx.stroke();}
-  } catch (e) { console.warn('[CountdownBg] Draw failed:', e); }
+    for (let i=0;i<80;i++) { const x=Math.random()*W, y=Math.random()*H, rr=Math.random()*1.5; ctx.beginPath(); ctx.arc(x,y,rr,0,Math.PI*2); ctx.fill(); }
+    for (let i=1;i<=4;i++) { ctx.strokeStyle=`rgba(255,255,255,${0.04/i})`; ctx.lineWidth=1; ctx.beginPath(); ctx.arc(W/2,H/2,i*80,0,Math.PI*2); ctx.stroke(); }
+  } catch(e) { console.warn('[CountdownBg] Draw failed:', e); }
 }
 
-function drawArrivalBg(color){
-  try {
-    const canvas=getEl('arrivalCanvas'); if(!canvas) return;
-    const W=window.innerWidth, H=window.innerHeight; canvas.width=W; canvas.height=H;
-    const ctx=canvas.getContext('2d');
-    const r=parseInt(color.slice(1,3)||'1e',16),g=parseInt(color.slice(3,5)||'17',16),b=parseInt(color.slice(5,7)||'47',16);
-    const grd=ctx.createRadialGradient(W/2,H/2,0,W/2,H/2,Math.max(W,H));
-    grd.addColorStop(0,`rgba(${r},${g},${b},.6)`); grd.addColorStop(1,'rgba(9,12,19,.98)');
-    ctx.fillStyle=grd; ctx.fillRect(0,0,W,H);
-    for(let i=0;i<60;i++){const x=Math.random()*W,y=Math.random()*H,sz=Math.random()*2;ctx.fillStyle=`rgba(255,255,255,${Math.random()*.7+.3})`;ctx.beginPath();ctx.arc(x,y,sz,0,Math.PI*2);ctx.fill();}
-  } catch (e) { console.warn('[ArrivalBg] Draw failed:', e); }
-}
-
-function closeArrival(){
-  try { const ov=getEl('showtimeOverlay'); if(ov) ov.classList.remove('on'); }
-  catch (e) { console.warn('[Arrival] Close failed:', e); }
-}
+function closeArrival() { try { const ov=getEl('showtimeOverlay'); if(ov) ov.classList.remove('on'); } catch(e) {} }
 
 // ════════════════════════════════════════════════
-// TITLE ZONE (Zone 6)
+// TITLE ZONE
 // ════════════════════════════════════════════════
-function renderTitleZone(){
+function renderTitleZone() {
   try {
-    const {tier,stars,oshi,rainbow}=computeTitles();
+    const {tier, stars, oshi, rainbow} = computeTitles();
     const iconEl=getEl('titleIcon'), nameEl=getEl('titleName'), progEl=getEl('titleProgress'), fillEl=getEl('titleProgFill');
     const oshiEl=getEl('subTitleOshi'), rbEl=getEl('subTitleRainbow'), mbox=getEl('milestoneBox'), mtxt=getEl('milestoneTxt');
-    const sbStars=getEl('sbStars'), sbTitle=getEl('sbTitle');
-    if(iconEl) iconEl.textContent=tier.icon||'🌱';
-    if(nameEl){
-      nameEl.innerHTML=`<span class="txt-jp">${tier.jp||'ルーキー'}</span><span class="txt-en" style="display:none">${tier.en||'ROOKIE'}</span>`;
-      if(document.body.classList.contains('lang-en')){const jpSpan=nameEl.querySelector('.txt-jp'),enSpan=nameEl.querySelector('.txt-en');if(jpSpan)jpSpan.style.display='none';if(enSpan)enSpan.style.display='';}
+    if (iconEl) iconEl.textContent = tier.icon;
+    if (nameEl) {
+      nameEl.innerHTML = `<span class="txt-jp">${tier.jp}</span><span class="txt-en" style="display:none">${tier.en}</span>`;
+      if (document.body.classList.contains('lang-en')) { const jp=nameEl.querySelector('.txt-jp'), en=nameEl.querySelector('.txt-en'); if(jp)jp.style.display='none'; if(en)en.style.display=''; }
     }
-    if(iconEl) iconEl.textContent=tier.icon;
-    if(nameEl) nameEl.textContent=lang==='jp'?tier.jp:tier.en;
-    if(tier.next){
-      const prev=TITLE_TIERS.find(t=>t.next===tier.next)?.min??0, span=tier.next-prev, done=stars-prev, pct=Math.min(done/span*100,100);
-      if(fillEl) fillEl.style.width=pct+'%';
-      if(progEl) progEl.textContent=lang==='jp'?`次の称号まで ${tier.next-stars}公演`:`${tier.next-stars} shows to next title`;
+    if (iconEl) iconEl.textContent = tier.icon;
+    if (nameEl) nameEl.textContent = lang==='jp' ? tier.jp : tier.en;
+    if (tier.next) {
+      const prev = TITLE_TIERS.find(t => t.next === tier.next)?.min ?? 0;
+      const pct = Math.min((stars-prev) / (tier.next-prev) * 100, 100);
+      if (fillEl) fillEl.style.width = pct + '%';
+      if (progEl) progEl.textContent = lang==='jp' ? `次の称号まで ${tier.next-stars}公演` : `${tier.next-stars} shows to next title`;
     } else {
-      if(fillEl) fillEl.style.width='100%';
-      if(progEl) progEl.textContent=lang==='jp'?'最高称号達成！':'Maximum title achieved!';
+      if (fillEl) fillEl.style.width = '100%';
+      if (progEl) progEl.textContent = lang==='jp' ? '最高称号達成！' : 'Maximum title achieved!';
     }
-    if(oshiEl){if(oshi){oshiEl.textContent=lang==='jp'?oshi.jp:oshi.en;oshiEl.style.color=oshi.color;}else{oshiEl.textContent='—';oshiEl.style.color='';}}
-    if(rbEl){if(rainbow){rbEl.textContent=lang==='jp'?rainbow.jp:rainbow.en;}else rbEl.textContent='—';}
-    if(sbStars) sbStars.textContent=stars;
-    if(sbTitle) sbTitle.textContent=(lang==='jp'?tier.jp:tier.en).replace(/[🌱⭐💫✨🌟—]/g,'').trim()||tier.icon;
-    if(mtxt){
-      if(tier.next){mtxt.innerHTML=lang==='jp'?`<b>${tier.next-stars}公演</b>で「${TITLE_TIERS.find(t=>t.min===tier.next)?.[lang==='jp'?'jp':'en']||''}」に到達`:`<b>${tier.next-stars} more shows</b> to reach <b>${TITLE_TIERS.find(t=>t.min===tier.next)?.en||''}</b>`;}
-      else{if(mbox)mbox.style.display='none';}
+    if (oshiEl) { if (oshi) { oshiEl.textContent=lang==='jp'?oshi.jp:oshi.en; oshiEl.style.color=oshi.color; } else { oshiEl.textContent='—'; oshiEl.style.color=''; } }
+    if (rbEl)   { if (rainbow) rbEl.textContent=lang==='jp'?rainbow.jp:rainbow.en; else rbEl.textContent='—'; }
+    const sbStars=getEl('sbStars'), sbTitle=getEl('sbTitle');
+    if (sbStars) sbStars.textContent = stars;
+    if (sbTitle) sbTitle.textContent = (lang==='jp'?tier.jp:tier.en).replace(/[🌱⭐💫✨🌟—]/g,'').trim() || tier.icon;
+    if (mtxt) {
+      if (tier.next) { mtxt.innerHTML = lang==='jp' ? `<b>${tier.next-stars}公演</b>で「${TITLE_TIERS.find(t=>t.min===tier.next)?.[lang==='jp'?'jp':'en']||''}」に到達` : `<b>${tier.next-stars} more shows</b> to reach <b>${TITLE_TIERS.find(t=>t.min===tier.next)?.en||''}</b>`; }
+      else { if (mbox) mbox.style.display='none'; }
     }
-  } catch (e) { console.warn('[TitleZone] Render failed:', e); }
+  } catch(e) { console.warn('[TitleZone] Render failed:', e); }
 }
 
 // ════════════════════════════════════════════════
 // STATUS BAR
 // ════════════════════════════════════════════════
-function refreshStatusBar(){
+function refreshStatusBar() {
   try {
-    const pwr=Math.round(getPower());
-    document.documentElement.style.setProperty('--power',pwr);
-    const powerFill=getEl('powerFill'); if(powerFill) powerFill.style.width=pwr+'%';
-    const powerValText=getEl('powerValText'); if(powerValText) powerValText.textContent=pwr+' / 100';
+    const pwr = Math.round(getPower());
+    document.documentElement.style.setProperty('--power', pwr);
+    const powerFill = getEl('powerFill'); if (powerFill) powerFill.style.width = pwr+'%';
+    const powerValText = getEl('powerValText'); if (powerValText) powerValText.textContent = pwr+' / 100';
     setText('streakNum', powerData.streak);
-    const nxt=findNextTarget();
-    const ncEl=getEl('sbNextCity'), ctEl=getEl('sbCountdown');
-    if(ncEl&&nxt) ncEl.textContent=nxt.city+(nxt.country?', '+nxt.country:'');
-    if(ctEl&&nxt&&nxt.st){
-      // 複数日対応: 次のshowDateを動的取得
-      const nsIdx=getNextShowIndex(nxt);
-      const nextShow=nxt.showDates&&nsIdx>=0?nxt.showDates[nsIdx]:new Date(nxt.st);
-      const diff=nextShow-new Date();
-      ctEl.textContent=diff>0?fmt(diff):(lang==='jp'?'開演中':'LIVE NOW');
-    } else if(ctEl){ ctEl.textContent='—'; }
-    const starsEl=getEl('sbStars'); if(starsEl) starsEl.textContent=Object.keys(sentShows||{}).length;
+    const nxt = findNextTarget(), ncEl = getEl('sbNextCity'), ctEl = getEl('sbCountdown');
+    if (ncEl && nxt) ncEl.textContent = nxt.city + (nxt.country ? ', '+nxt.country : '');
+    if (ctEl && nxt && nxt.st) {
+      const nsIdx = getNextShowIndex(nxt);
+      const nextShow = nxt.showDates && nsIdx >= 0 ? nxt.showDates[nsIdx] : new Date(nxt.st);
+      const diff = nextShow - new Date();
+      ctEl.textContent = diff > 0 ? fmt(diff) : (lang==='jp' ? '開演中' : 'LIVE NOW');
+    } else if (ctEl) { ctEl.textContent = '—'; }
+    const starsEl = getEl('sbStars'); if (starsEl) starsEl.textContent = Object.keys(sentShows||{}).length;
     renderTitleZone();
-  } catch (e) { console.warn('[StatusBar] Refresh failed:', e); }
+  } catch(e) { console.warn('[StatusBar] Refresh failed:', e); }
 }
 
 // ════════════════════════════════════════════════
-// SEND STATE MACHINE（複数日公演パッチ適用）
+// SEND STATE MACHINE
 // ════════════════════════════════════════════════
-function evaluateSendState(){
+function _getNextDiff() {
+  const nsIdx = getNextShowIndex(targetStop);
+  return targetStop.showDates && nsIdx >= 0 ? targetStop.showDates[nsIdx]-new Date() : (targetStop.st ? new Date(targetStop.st)-new Date() : null);
+}
+
+function evaluateSendState() {
   try {
-    const btn=getEl('sendBtn'); if(!btn) return;
-    if(isSent(targetStop)){applySentState();return;}
-    if(targetStop.isTBA){applyTBAState();return;}
-    if(!targetStop.st){applyTBAState();return;}
-    // 複数日対応: getNextShowIndex で動的に次の公演日を判定
-    const nsIdx=getNextShowIndex(targetStop);
-    if(targetStop.showDates&&nsIdx>=0){
-      const nextShow=targetStop.showDates[nsIdx];
-      const diff=nextShow-new Date();
-      if(diff<-7200000){applyExpiredState();return;}
-      if(diff<=WINDOW_MS||demoMode){activateSendReady();return;}
-    } else {
-      const diff=new Date(targetStop.st)-new Date();
-      if(diff<-7200000){applyExpiredState();return;}
-      if(diff<=WINDOW_MS||demoMode){activateSendReady();return;}
-    }
+    const btn = getEl('sendBtn'); if (!btn) return;
+    if (isSent(targetStop)) { applySentState(); return; }
+    if (targetStop.isTBA || !targetStop.st) { applyTBAState(); return; }
+    const diff = _getNextDiff();
+    if (diff !== null && diff < -7200000) { applyExpiredState(); return; }
+    if ((diff !== null && diff <= WINDOW_MS) || demoMode) { activateSendReady(); return; }
     applyLockedState();
-  } catch (e) { console.warn('[SendState] Evaluation failed:', e); }
+  } catch(e) { console.warn('[SendState] Evaluation failed:', e); }
 }
 
-function applyLockedState(){
-  try { sendReady=false; const b=getEl('sendBtn'); if(b)b.className='locked'; refreshStep(1); updateSendBtnText(); }
-  catch (e) { console.warn('[SendState] applyLocked failed:', e); }
-}
-function applyTBAState(){
-  try { sendReady=false; const b=getEl('sendBtn'); if(b)b.className='tba-lock'; refreshStep(1); updateSendBtnText(); }
-  catch (e) { console.warn('[SendState] applyTBA failed:', e); }
-}
-function applyExpiredState(){
-  try { sendReady=false; const b=getEl('sendBtn'); if(b)b.className='locked'; refreshStep(1); updateSendBtnText(); }
-  catch (e) { console.warn('[SendState] applyExpired failed:', e); }
-}
-function applySentState(){
-  try { sendReady=false; const b=getEl('sendBtn'); if(b)b.className='sent'; refreshStep(3); updateSendBtnText(); }
-  catch (e) { console.warn('[SendState] applySent failed:', e); }
-}
-function activateSendReady(){
-  try {
-    if(isSent(targetStop)) return;
-    sendReady=true; const b=getEl('sendBtn'); if(b)b.className='ready';
-    refreshStep(2); updateSendStyle(); updateSendBtnText();
-  } catch (e) { console.warn('[SendState] activateReady failed:', e); }
+function applyLockedState()  { sendReady=false; const b=getEl('sendBtn'); if(b)b.className='locked';   refreshStep(1); updateSendBtnText(); }
+function applyTBAState()     { sendReady=false; const b=getEl('sendBtn'); if(b)b.className='tba-lock'; refreshStep(1); updateSendBtnText(); }
+function applyExpiredState() { sendReady=false; const b=getEl('sendBtn'); if(b)b.className='locked';   refreshStep(1); updateSendBtnText(); }
+function applySentState()    { sendReady=false; const b=getEl('sendBtn'); if(b)b.className='sent';     refreshStep(3); updateSendBtnText(); }
+function activateSendReady() {
+  if (isSent(targetStop)) return;
+  sendReady=true; const b=getEl('sendBtn'); if(b)b.className='ready';
+  refreshStep(2); updateSendStyle(); updateSendBtnText();
 }
 
-// ────────────────────────────────────────────────
-// refreshStep() — 複数日対応: getNextShowIndex で diff を動的算出
-// ────────────────────────────────────────────────
-function refreshStep(forceStep){
+function refreshStep(forceStep) {
   try {
-    const statusEl=getEl('sendStatus'); if(!statusEl) return;
-    const step=forceStep||(sendReady?2:isSent(targetStop)?3:1);
-    // 複数日対応: 次の公演日時を動的取得
-    const nsIdx=getNextShowIndex(targetStop);
-    const diff2=targetStop.showDates&&nsIdx>=0
-      ? targetStop.showDates[nsIdx]-new Date()
-      : (targetStop.st ? new Date(targetStop.st)-new Date() : null);
-    if(step===3){
-      statusEl.textContent=lang==='jp'?'✦ 光を送信済み · 開演時刻に点灯します':'✦ Light sent · Will glow at showtime';
-      statusEl.style.color='var(--green)';
-    } else if(step===2){
-      const m=diff2!=null?Math.max(0,Math.floor(diff2/60000)):0;
-      statusEl.textContent=lang==='jp'?`✦ 送信可能 · 開演まで${m}分`:`✦ WINDOW OPEN · ${m}min to showtime`;
-      statusEl.style.color='var(--purple)';
-    } else {
-      if(targetStop.isTBA){
-        statusEl.textContent=lang==='jp'?'会場・開演時間 発表待ち':'VENUE & TIME TBA';
-        statusEl.style.color='var(--dim)';
-      } else if(diff2!=null&&diff2<0){
-        statusEl.textContent=lang==='jp'?'この公演は終了しました':'This show has ended';
-        statusEl.style.color='var(--dim)';
-      } else {
-        const h=diff2!=null?Math.ceil(diff2/3600000):null;
-        statusEl.textContent=lang==='jp'
-          ?(h!=null&&h<=24?`開演${h}時間前 · あと${h-1}時間で送信可`:'開演1時間前に送信可能')
-          :(h!=null&&h<=24?`${h}h to show · opens in ${h-1}h`:'Unlocks 1h before showtime');
-        statusEl.style.color='var(--dim)';
-      }
+    const statusEl = getEl('sendStatus'); if (!statusEl) return;
+    const step = forceStep || (sendReady ? 2 : isSent(targetStop) ? 3 : 1);
+    const diff2 = _getNextDiff();
+    if (step === 3) { statusEl.textContent = lang==='jp' ? '✦ 光を送信済み · 開演時刻に点灯します' : '✦ Light sent · Will glow at showtime'; statusEl.style.color='var(--green)'; }
+    else if (step === 2) { const m=diff2!=null?Math.max(0,Math.floor(diff2/60000)):0; statusEl.textContent = lang==='jp' ? `✦ 送信可能 · 開演まで${m}分` : `✦ WINDOW OPEN · ${m}min to showtime`; statusEl.style.color='var(--purple)'; }
+    else {
+      if (targetStop.isTBA) { statusEl.textContent = lang==='jp' ? '会場・開演時間 発表待ち' : 'VENUE & TIME TBA'; statusEl.style.color='var(--dim)'; }
+      else if (diff2!=null && diff2<0) { statusEl.textContent = lang==='jp' ? 'この公演は終了しました' : 'This show has ended'; statusEl.style.color='var(--dim)'; }
+      else { const h=diff2!=null?Math.ceil(diff2/3600000):null; statusEl.textContent = lang==='jp' ? (h!=null&&h<=24?`開演${h}時間前 · あと${h-1}時間で送信可`:'開演1時間前に送信可能') : (h!=null&&h<=24?`${h}h to show · opens in ${h-1}h`:'Unlocks 1h before showtime'); statusEl.style.color='var(--dim)'; }
     }
-  } catch (e) { console.warn('[SendState] refreshStep failed:', e); }
+  } catch(e) { console.warn('[SendState] refreshStep failed:', e); }
 }
 
-// ────────────────────────────────────────────────
-// updateSendBtnText() — 複数日対応
-// ────────────────────────────────────────────────
-function updateSendBtnText(){
+function updateSendBtnText() {
   try {
-    const btn=getEl('sendBtn'); if(!btn) return;
-    const cls=btn.className;
-    const nsIdx=getNextShowIndex(targetStop);
-    const diff2=targetStop.showDates&&nsIdx>=0
-      ? targetStop.showDates[nsIdx]-new Date()
-      : (targetStop.st?new Date(targetStop.st)-new Date():null);
-    const expired=diff2!==null&&diff2<0&&!isSent(targetStop);
-    if(cls==='ready'){
-      const m=diff2!=null?Math.max(0,Math.floor(diff2/60000)):0;
-      const pwr=Math.round(getPower());
-      btn.textContent=lang==='jp'?`✦ 光を送る · ${activeMember.jp}カラー · 残${m}分 · PWR${pwr}`:`✦ SHOOT LIGHT · ${activeMember.name} · ${m}min · PWR${pwr}`;
-    } else if(cls==='sent'){
-      const sm=sentMem(targetStop)||activeMember;
-      btn.textContent=lang==='jp'?`✦ ${sm.jp||sm.name}カラーで送信済み · 次の公演でも送れます`:`✦ Sent as ${sm.name} · Available at next show`;
-    } else if(cls==='tba-lock'){
-      btn.textContent=lang==='jp'?'⏳ 会場・開演時間 発表待ち':'⏳ VENUE & TIME TBA';
-    } else if(expired){
-      btn.textContent=lang==='jp'?'— この公演は終了しました':'— This show has ended';
-    } else {
-      const h=diff2!=null?Math.ceil(diff2/3600000):null;
-      btn.textContent=lang==='jp'?(h!=null&&h<=24?`🔒 あと${h-1}時間で送信ウィンドウが開きます`:'🔒 開演1時間前に送信可能'):(h!=null&&h<=24?`🔒 Window opens in ${h-1}h`:'🔒 UNLOCKS 1H BEFORE SHOWTIME');
-    }
-  } catch (e) { console.warn('[SendBtn] Update text failed:', e); }
+    const btn = getEl('sendBtn'); if (!btn) return;
+    const cls = btn.className, diff2 = _getNextDiff(), expired = diff2!==null&&diff2<0&&!isSent(targetStop);
+    if (cls==='ready')    { const m=diff2!=null?Math.max(0,Math.floor(diff2/60000)):0; const pwr=Math.round(getPower()); btn.textContent = lang==='jp' ? `✦ 光を送る · ${activeMember.jp}カラー · 残${m}分 · PWR${pwr}` : `✦ SHOOT LIGHT · ${activeMember.name} · ${m}min · PWR${pwr}`; }
+    else if (cls==='sent')      { const sm=sentMem(targetStop)||activeMember; btn.textContent = lang==='jp' ? `✦ ${sm.jp||sm.name}カラーで送信済み · 次の公演でも送れます` : `✦ Sent as ${sm.name} · Available at next show`; }
+    else if (cls==='tba-lock')  { btn.textContent = lang==='jp' ? '⏳ 会場・開演時間 発表待ち' : '⏳ VENUE & TIME TBA'; }
+    else if (expired)           { btn.textContent = lang==='jp' ? '— この公演は終了しました' : '— This show has ended'; }
+    else { const h=diff2!=null?Math.ceil(diff2/3600000):null; btn.textContent = lang==='jp' ? (h!=null&&h<=24?`🔒 あと${h-1}時間で送信ウィンドウが開きます`:'🔒 開演1時間前に送信可能') : (h!=null&&h<=24?`🔒 Window opens in ${h-1}h`:'🔒 UNLOCKS 1H BEFORE SHOWTIME'); }
+  } catch(e) { console.warn('[SendBtn] Update text failed:', e); }
 }
 
-function updateSendStyle(){
+function updateSendStyle() {
   try {
-    const btn=getEl('sendBtn'); if(!btn||btn.className!=='ready') return;
-    btn.style.background=`linear-gradient(135deg,${activeMember.color},${activeMember.color}77)`;
-    btn.style.boxShadow=`0 4px 28px ${activeMember.color}55`;
-    btn.style.color='#000'; updateSendBtnText();
-  } catch (e) { console.warn('[SendStyle] Update failed:', e); }
-}
-
-// ════════════════════════════════════════════════
-// LIGHT JOURNEY DESCRIPTION
-// ════════════════════════════════════════════════
-function oceanName(fLa,fLo,tLa,tLo){
-  try {
-    const mLo=(fLo+tLo)/2,mLa=(fLa+tLa)/2,lDiff=Math.abs(tLo-fLo);
-    if(lDiff>150||(mLo<-60&&mLo>-180&&mLa>0))return{jp:'太平洋上を移動中',en:'crossing the Pacific Ocean'};
-    if(mLo>-60&&mLo<20&&mLa>0)return{jp:'大西洋上を移動中',en:'crossing the Atlantic Ocean'};
-    if(mLo>20&&mLo<120&&mLa>10)return{jp:'ユーラシア大陸上空を移動中',en:'crossing Eurasia'};
-    if(mLo>60&&mLo<120&&mLa<10)return{jp:'インド洋上を移動中',en:'crossing the Indian Ocean'};
-    return{jp:'上空を移動中',en:'on its way'};
-  } catch (e) { return{jp:'上空を移動中',en:'on its way'}; }
+    const btn = getEl('sendBtn'); if (!btn || btn.className !== 'ready') return;
+    btn.style.background = `linear-gradient(135deg,${activeMember.color},${activeMember.color}77)`;
+    btn.style.boxShadow  = `0 4px 28px ${activeMember.color}55`;
+    btn.style.color = '#000'; updateSendBtnText();
+  } catch(e) { console.warn('[SendStyle] Update failed:', e); }
 }
 
 // ════════════════════════════════════════════════
 // SEND
 // ════════════════════════════════════════════════
-async function doSend(){
+async function doSend() {
   try {
-    if(!sendReady||isSent(targetStop)) return;
-    const btn=getEl('sendBtn'); if(!btn) return;
-    btn.textContent=lang==='jp'?'⟳ 確認中…':'⟳ CHECKING…';
-    btn.style.cursor='wait'; btn.disabled=true;
-    const wKey=showKey(targetStop);
-    const sdsResult=await SDS.checkAndSend(wKey, activeMember.id);
+    if (!sendReady || isSent(targetStop)) return;
+    const btn = getEl('sendBtn'); if (!btn) return;
+    btn.textContent = lang==='jp' ? '⟳ 確認中…' : '⟳ CHECKING…'; btn.style.cursor='wait'; btn.disabled=true;
+    const wKey = showKey(targetStop), sdsResult = await SDS.checkAndSend(wKey, activeMember.id);
     btn.style.cursor=''; btn.disabled=false;
-    if(!sdsResult.ok){
-      markSent(targetStop,activeMember,getPower()); sendReady=false; applySentState();
-      const reason=sdsResult.reason;
-      alert(lang==='jp'
-        ?(reason==='invalid_signature'?'セキュリティエラー。ページを再読み込みしてください。':'この公演にはすでに光を送っています。\n次の公演でまた送れます。')
-        :(reason==='invalid_signature'?'Security error. Please reload the page.':'You already sent your light for this show.\nSend again at the next show!'));
+    if (!sdsResult.ok) {
+      markSent(targetStop, activeMember, getPower()); sendReady=false; applySentState();
+      alert(lang==='jp' ? (sdsResult.reason==='invalid_signature'?'セキュリティエラー。ページを再読み込みしてください。':'この公演にはすでに光を送っています。\n次の公演でまた送れます。') : (sdsResult.reason==='invalid_signature'?'Security error. Please reload the page.':'You already sent your light for this show.\nSend again at the next show!'));
       return;
     }
-    const pwr=getPower();
-    markSent(targetStop,activeMember,pwr); energyCount++;
-    const fLa=geoGranted&&userLat?userLat:routeFrom.lat, fLo=geoGranted&&userLng?userLng:routeFrom.lng;
-    const dist=Math.round(hav(fLa,fLo,targetStop.lat,targetStop.lng));
-    const ocean=oceanName(fLa,fLo,targetStop.lat,targetStop.lng);
+    const pwr = getPower(); markSent(targetStop, activeMember, pwr); energyCount++;
+    const fLa = geoGranted&&userLat ? userLat : routeFrom.lat, fLo = geoGranted&&userLng ? userLng : routeFrom.lng;
+    const dist = Math.round(hav(fLa, fLo, targetStop.lat, targetStop.lng));
+    const ocean = oceanName(fLa, fLo, targetStop.lat, targetStop.lng);
     const sendMsg=getEl('sendMsg'), journeyDesc=getEl('journeyDesc'), powerBonus=getEl('powerBonus');
-    if(sendMsg) sendMsg.textContent=lang==='jp'?`${activeMember.jp||activeMember.name}の光を送りました`:`${activeMember.name}'S LIGHT IS ON ITS WAY`;
-    if(journeyDesc) journeyDesc.textContent=lang==='jp'?`${ocean.jp}\n${dist.toLocaleString()} km 先の ${targetStop.city} へ`:`${ocean.en}\n${dist.toLocaleString()} km to ${targetStop.city}`;
-    if(powerBonus) powerBonus.textContent=lang==='jp'?`⚡ POWER ${Math.round(pwr)} · 光の強度 +${Math.round(pwr/100*100)}%`:`⚡ POWER ${Math.round(pwr)} · Intensity +${Math.round(pwr/100*100)}%`;
+    if (sendMsg)     sendMsg.textContent     = lang==='jp' ? `${activeMember.jp||activeMember.name}の光を送りました` : `${activeMember.name}'S LIGHT IS ON ITS WAY`;
+    if (journeyDesc) journeyDesc.textContent = lang==='jp' ? `${ocean.jp}\n${dist.toLocaleString()} km 先の ${targetStop.city} へ` : `${ocean.en}\n${dist.toLocaleString()} km to ${targetStop.city}`;
+    if (powerBonus)  powerBonus.textContent  = lang==='jp' ? `⚡ POWER ${Math.round(pwr)} · 光の強度 +${Math.round(pwr/100*100)}%` : `⚡ POWER ${Math.round(pwr)} · Intensity +${Math.round(pwr/100*100)}%`;
     showSendEffect(activeMember, targetStop.city, dist);
-    setTimeout(()=>{
-      const sendOverlay=getEl('sendOverlay'); if(sendOverlay) sendOverlay.classList.remove('on');
+    setTimeout(() => {
+      const sendOverlay = getEl('sendOverlay'); if (sendOverlay) sendOverlay.classList.remove('on');
       sendReady=false; applySentState();
       const sm=sentMem(targetStop), tSent=getEl('tSent'), tSentTxt=getEl('tSentTxt');
-      if(sm&&tSent&&tSentTxt){
-        tSentTxt.innerHTML=`<span class="txt-jp">${sm.jp||sm.name}カラーで光を送信済み</span><span class="txt-en">Light sent as ${sm.name}</span>`;
-        tSent.classList.add('on');
-      }
+      if (sm&&tSent&&tSentTxt) { tSentTxt.innerHTML=`<span class="txt-jp">${sm.jp||sm.name}カラーで光を送信済み</span><span class="txt-en">Light sent as ${sm.name}</span>`; tSent.classList.add('on'); }
       refreshCardSent();
-      const eCount=getEl('eCount'); if(eCount) eCount.textContent=energyCount.toLocaleString();
+      const eCount = getEl('eCount'); if (eCount) eCount.textContent = energyCount.toLocaleString();
       drawEnergy(); renderTitleZone(); refreshStatusBar();
-      if(geoGranted&&userLat) updateCompassFromUser();
+      if (geoGranted && userLat) updateCompassFromUser();
     }, 4000);
-  } catch (e) {
-    console.error('[Send] doSend failed:', e);
-    const btn=getEl('sendBtn'); if(btn){btn.style.cursor='';btn.disabled=false;}
-  }
+  } catch(e) { console.error('[Send] doSend failed:', e); const btn=getEl('sendBtn'); if(btn){btn.style.cursor='';btn.disabled=false;} }
 }
 
 // ════════════════════════════════════════════════
 // SEND BUTTON INIT
 // ════════════════════════════════════════════════
-function initSendBtn(){
-  try {
-    const btn=getEl('sendBtn'); if(btn) btn.addEventListener('click',doSend);
-    evaluateSendState();
-    let tc=0, tt;
-    const livePill=getEl('livePill');
-    if(livePill){
-      livePill.addEventListener('click',()=>{
-        clearTimeout(tt); tc++;
-        if(tc>=3){tc=0;demoMode=true;const dh=getEl('demoHint');if(dh){dh.textContent=lang==='jp'?'✦ デモ ON':'✦ DEMO ON';dh.style.color='var(--gold)';}activateSendReady();}
-        tt=setTimeout(()=>tc=0,1000);
-      });
-    }
-  } catch (e) { console.error('[SendBtn] Init failed:', e); }
+function initSendBtn() {
+  const btn = getEl('sendBtn'); if (btn) btn.addEventListener('click', doSend);
+  evaluateSendState();
+  let tc=0, tt;
+  const livePill = getEl('livePill');
+  if (livePill) {
+    livePill.addEventListener('click', () => {
+      clearTimeout(tt); tc++;
+      if (tc >= 3) { tc=0; demoMode=true; const dh=getEl('demoHint'); if(dh){dh.textContent=lang==='jp'?'✦ デモ ON':'✦ DEMO ON';dh.style.color='var(--gold)';} activateSendReady(); }
+      tt = setTimeout(() => tc=0, 1000);
+    });
+  }
 }
 
 // ════════════════════════════════════════════════
 // COUNTDOWN
 // ════════════════════════════════════════════════
-function fmt(ms){
-  try {
-    if(ms===null)return lang==='jp'?'発表待ち':'TBA';
-    if(ms<=0)return lang==='jp'?'開演中！':'SHOWTIME!';
-    const d=Math.floor(ms/86400000),h=Math.floor((ms%86400000)/3600000),m=Math.floor((ms%3600000)/60000);
-    if(lang==='jp')return d>0?`${d}日 ${h}時間 ${m}分`:h>0?`${h}時間 ${m}分`:`${m}分`;
-    return d>0?`${d}d ${h}h`:h>0?`${h}h ${m}m`:`${m}m`;
-  } catch (e) { return lang==='jp'?'--':'--'; }
+function fmt(ms) {
+  if (ms === null) return lang==='jp' ? '発表待ち' : 'TBA';
+  if (ms <= 0)     return lang==='jp' ? '開演中！' : 'SHOWTIME!';
+  const d=Math.floor(ms/86400000), h=Math.floor((ms%86400000)/3600000), m=Math.floor((ms%3600000)/60000);
+  if (lang==='jp') return d>0 ? `${d}日 ${h}時間 ${m}分` : h>0 ? `${h}時間 ${m}分` : `${m}分`;
+  return d>0 ? `${d}d ${h}h` : h>0 ? `${h}h ${m}m` : `${m}m`;
 }
 
-// ────────────────────────────────────────────────
-// updateCountdown() — 複数日対応: 次のshowDateを動的取得
-// ────────────────────────────────────────────────
-function updateCountdown(){
+function updateCountdown() {
   try {
-    const nxt=(typeof findNextTarget==='function')?findNextTarget():targetStop;
-    if(!nxt||!nxt.st){ setText('mainCnt','—'); return; }
-    const nsIdx=getNextShowIndex(nxt);
-    const diff=nxt.showDates&&nsIdx>=0 ? nxt.showDates[nsIdx]-new Date() : new Date(nxt.st)-new Date();
+    const nxt = findNextTarget(); if (!nxt || !nxt.st) { setText('mainCnt','—'); return; }
+    const nsIdx = getNextShowIndex(nxt);
+    const diff = nxt.showDates && nsIdx>=0 ? nxt.showDates[nsIdx]-new Date() : new Date(nxt.st)-new Date();
     setText('mainCnt', fmt(Math.max(diff, 0)));
     const jpLbl=document.getElementById('mainCntLblJP'), enLbl=document.getElementById('mainCntLblEN');
-    if(jpLbl) jpLbl.textContent=nxt.city+'まで';
-    if(enLbl) enLbl.textContent='TO '+nxt.city.toUpperCase();
-  } catch (e) { console.warn('[Countdown] Update failed:', e); }
+    if (jpLbl) jpLbl.textContent = nxt.city + 'まで';
+    if (enLbl) enLbl.textContent = 'TO ' + nxt.city.toUpperCase();
+  } catch(e) { console.warn('[Countdown] Update failed:', e); }
 }
 
-// ────────────────────────────────────────────────
-// updateShowtime() — 複数日公演＋LIVE維持 統合版
-//
-// [複数日対応] getNextShowIndex() で各都市の「次の公演日」を動的算出
-// [LIVE維持]   isTargetLive: いずれかのshowDateが開演後0〜2時間なら
-//              自動切替をブロックし、「開演中！」表示を継続
-// ────────────────────────────────────────────────
-function updateShowtime(){
+function updateShowtime() {
   try {
-    // ── ステータスバー更新 ──
-    const _nxt=(typeof findNextTarget==='function')?findNextTarget():targetStop;
-    if(_nxt){
+    const _nxt = findNextTarget();
+    if (_nxt) {
       const ncEl=getEl('sbNextCity'), ctEl=getEl('sbCountdown');
-      if(ncEl) ncEl.textContent=_nxt.city+(_nxt.country?', '+_nxt.country:'');
-      if(ctEl&&_nxt.st){
+      if (ncEl) ncEl.textContent = _nxt.city + (_nxt.country?', '+_nxt.country:'');
+      if (ctEl && _nxt.st) {
         const _nsIdx=getNextShowIndex(_nxt);
-        const _nextShow=_nxt.showDates&&_nsIdx>=0?_nxt.showDates[_nsIdx]:new Date(_nxt.st);
-        const _diff=_nextShow-new Date();
-        ctEl.textContent=_diff>0?fmt(_diff):(lang==='jp'?'開演中':'LIVE NOW');
-      } else if(ctEl){ ctEl.textContent='—'; }
+        const _ns=_nxt.showDates&&_nsIdx>=0?_nxt.showDates[_nsIdx]:new Date(_nxt.st);
+        const _diff=_ns-new Date();
+        ctEl.textContent = _diff>0 ? fmt(_diff) : (lang==='jp'?'開演中':'LIVE NOW');
+      } else if (ctEl) ctEl.textContent='—';
     }
-
-    // ── LIVE維持ガード: いずれかのshowDateが開演後0〜2時間なら切替ブロック ──
-    const isTargetLive=targetStop&&targetStop.st&&(()=>{
-      const dates=targetStop.showDates||[new Date(targetStop.st)];
-      return dates.some(showTime=>{ const d=showTime-new Date(); return d<=0&&d>-7200000; });
+    // LIVE維持ガード
+    const isTargetLive = targetStop && targetStop.st && (() => {
+      const dates = targetStop.showDates || [new Date(targetStop.st)];
+      return dates.some(t => { const d=t-new Date(); return d<=0&&d>-7200000; });
     })();
-
-    const _fresh=findNextTarget();
-    if(_fresh&&_fresh!==targetStop&&!demoMode&&!isTargetLive){
-      const _fi=TOUR.indexOf(_fresh);
-      selectStop(_fresh,_fi);
+    const _fresh = findNextTarget();
+    if (_fresh && _fresh !== targetStop && !demoMode && !isTargetLive) {
+      selectStop(_fresh, TOUR.indexOf(_fresh));
     }
-
-    // ── 画面中央カウントダウン更新 ──
-    const showtimeCnt=getEl('showtimeCnt');
-    if(!targetStop.st){ if(showtimeCnt)showtimeCnt.textContent=fmt(null); return; }
-
-    const nsIdx=getNextShowIndex(targetStop);
-    const diff=targetStop.showDates&&nsIdx>=0
-      ? targetStop.showDates[nsIdx]-new Date()
-      : new Date(targetStop.st)-new Date();
-    if(showtimeCnt) showtimeCnt.textContent=fmt(diff);
-
-    // ── 送信ウィンドウ開閉監視 ──
-    if(!isSent(targetStop)&&!targetStop.isTBA){
-      if(diff>0&&diff<=WINDOW_MS&&!sendReady) activateSendReady();
-      else if(diff<=0&&sendReady) applyExpiredState();
+    const showtimeCnt = getEl('showtimeCnt');
+    if (!targetStop.st) { if (showtimeCnt) showtimeCnt.textContent=fmt(null); return; }
+    const diff = _getNextDiff();
+    if (showtimeCnt) showtimeCnt.textContent = fmt(diff);
+    if (!isSent(targetStop) && !targetStop.isTBA) {
+      if (diff > 0 && diff <= WINDOW_MS && !sendReady) activateSendReady();
+      else if (diff <= 0 && sendReady) applyExpiredState();
     }
-
     checkShowtimeArrival();
-  } catch (e) { console.warn('[Showtime] Update failed:', e); }
+  } catch(e) { console.warn('[Showtime] Update failed:', e); }
 }
 
-// ────────────────────────────────────────────────
-// checkShowtimeArrival() — 複数日対応
-// 各showDateごとにアライバルオーバーレイを制御
-// キー形式: fd_city_YYYY-MM-DD（1公演日につき1回）
-// ────────────────────────────────────────────────
-function checkShowtimeArrival(){
+function checkShowtimeArrival() {
   try {
-    const now=new Date();
-    TOUR.forEach(v=>{
-      if(!isSent(v)||!v.st) return;
-      const showTimes=v.showDates&&v.showDates.length>0?v.showDates:[new Date(v.st)];
-      showTimes.forEach(showTime=>{
-        const dateStr=showTime.toISOString().slice(0,10);
-        const k=showKey(v)+'_'+dateStr;
-        if(shownArrival.has(k)) return;
-        const diff=now-showTime;
-        if(diff>=0&&diff<=10*60*1000){
-          shownArrival.add(k);
-          localStorage.setItem('bts_lr_arr',JSON.stringify([...shownArrival]));
+    const now = new Date();
+    TOUR.forEach(v => {
+      if (!isSent(v) || !v.st) return;
+      const showTimes = v.showDates&&v.showDates.length>0 ? v.showDates : [new Date(v.st)];
+      showTimes.forEach(showTime => {
+        const dateStr = showTime.toISOString().slice(0,10), k = showKey(v)+'_'+dateStr;
+        if (shownArrival.has(k)) return;
+        const diff = now - showTime;
+        if (diff >= 0 && diff <= 10*60*1000) {
+          shownArrival.add(k); localStorage.setItem('bts_lr_arr', JSON.stringify([...shownArrival]));
           const sm=sentMem(v), el=getEl('showtimeVenue');
-          if(el){el.textContent=`${v.city} · ${v.venue}`;if(sm)el.style.color=sm.color;}
-          const ov=getEl('showtimeOverlay'); if(ov) ov.classList.add('on');
+          if (el) { el.textContent=`${v.city} · ${v.venue}`; if(sm)el.style.color=sm.color; }
+          const ov=getEl('showtimeOverlay'); if(ov)ov.classList.add('on');
         }
       });
     });
-  } catch (e) { console.warn('[Showtime] Check arrival failed:', e); }
+  } catch(e) { console.warn('[Showtime] Check arrival failed:', e); }
 }
 
 // ════════════════════════════════════════════════
-// SHARE
+// SHARE — デイリー推しシェア（航路シェア廃止）
 // ════════════════════════════════════════════════
-function buildShareCanvas(){
+
+// ── Canvas生成（位置情報・航路変数を一切使用しない）──────────
+function buildDailyShareCanvas() {
   try {
-    const c=getEl('shareCanvas'),ctx=c?c.getContext('2d'):null; if(!c||!ctx) return;
-    const W=600,H=280;
-    const bg=ctx.createLinearGradient(0,0,W,H);bg.addColorStop(0,'#EEF0FF');bg.addColorStop(1,'#E8EAFF');
-    ctx.fillStyle=bg;ctx.fillRect(0,0,W,H);
-    for(let i=0;i<95;i++){ctx.fillStyle=`rgba(255,255,255,${(Math.random()*.2+.04).toFixed(2)})`;ctx.beginPath();ctx.arc(Math.random()*W,Math.random()*H,Math.random()*1.3,0,Math.PI*2);ctx.fill();}
-    ctx.strokeStyle='rgba(155,114,240,.12)';ctx.lineWidth=.8;
-    for(let lo=-180;lo<=180;lo+=30){ctx.beginPath();const x=((lo+180)/360)*(W-36)+18;ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke();}
-    for(let la=-60;la<=90;la+=30){ctx.beginPath();const y=((90-la)/180)*(H-36)+18;ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();}
-    const pts=gc(routeFrom.lat,routeFrom.lng,routeTo.lat,routeTo.lng,120);
-    const segs=[];let cur=[];
-    pts.forEach(([la,lo],j)=>{if(j>0&&Math.abs(lo-pts[j-1][1])>180){segs.push(cur);cur=[];}cur.push([la,lo]);});segs.push(cur);
-    const pwr=getPower(),lw=1.5+(pwr/100)*2;
-    segs.forEach(seg=>{if(seg.length<2)return;ctx.beginPath();let ff=true;seg.forEach(([la,lo])=>{const x=((lo+180)/360)*(W-36)+18,y=((90-la)/180)*(H-36)+18;if(ff){ctx.moveTo(x,y);ff=false;}else ctx.lineTo(x,y);});ctx.shadowBlur=12;ctx.shadowColor=activeMember.color;ctx.strokeStyle=activeMember.color+'cc';ctx.lineWidth=lw;ctx.setLineDash([6,6]);ctx.stroke();ctx.setLineDash([]);ctx.shadowBlur=0;});
-    [[routeFrom,'#EAC130'],[routeTo,activeMember.color]].forEach(([v,col])=>{const x=((v.lng+180)/360)*(W-36)+18,y=((90-v.lat)/180)*(H-36)+18;ctx.shadowBlur=14;ctx.shadowColor=col;ctx.fillStyle=col;ctx.beginPath();ctx.arc(x,y,5,0,Math.PI*2);ctx.fill();ctx.shadowBlur=0;ctx.fillStyle='rgba(255,255,255,.85)';ctx.font='bold 11px Chakra Petch,monospace';ctx.fillText(v.city,x+9,y+4);});
-    ctx.font='bold 27px Chakra Petch,monospace';ctx.fillStyle='#D4AF37';ctx.shadowBlur=16;ctx.shadowColor='rgba(176,125,16,.5)';ctx.fillText('✦ FHTS',20,42);ctx.shadowBlur=0;
-    ctx.font='9px Chakra Petch,monospace';ctx.fillStyle='rgba(255,255,255,.3)';ctx.fillText('LIGHT ROUTE · GLOBAL EDITION 2026–27',20,58);
-    const b2=Math.round(brng(routeFrom.lat,routeFrom.lng,routeTo.lat,routeTo.lng)),d2=Math.round(hav(routeFrom.lat,routeFrom.lng,routeTo.lat,routeTo.lng));
-    ctx.fillStyle='rgba(255,255,255,.2)';ctx.font='9px Chakra Petch,monospace';ctx.fillText(`${b2}° · ${d2.toLocaleString()} km · #BTSLightRoute`,20,H-14);
-    const {tier}=computeTitles(); ctx.fillStyle=activeMember.color; ctx.font='bold 10px Chakra Petch,monospace';
-    const tag=`${lang==='jp'?activeMember.jp:activeMember.name} · ${lang==='jp'?tier.jp:tier.en}`.replace(/[🌱⭐💫✨🌟—]/g,'').trim();
-    ctx.fillText(tag,W-20-ctx.measureText(tag).width,H-14);
-  } catch (e) { console.warn('[Share] Build canvas failed:', e); }
+    const memberId = dailyData.members[0];
+    if (!memberId) { console.warn('[DailyShare] No member selected today'); return; }
+    const member = MEMBERS.find(m => m.id === memberId); if (!member) return;
+
+    const c = getEl('dailyShareCanvas'); if (!c) return;
+    const ctx = c.getContext('2d');
+    // サイズを毎回明示上書き（HTML属性との競合防止）
+    const W = 600, H = 360; c.width = W; c.height = H;
+
+    const { tier, rainbow } = computeTitles();
+    const pwr    = Math.round(getPower());
+    const streak = powerData.streak || 0;
+
+    const today = new Date();
+    const dow   = ['日','月','火','水','木','金','土'][today.getDay()];
+    const dowEN = ['SUN','MON','TUE','WED','THU','FRI','SAT'][today.getDay()];
+    const dateStr = lang==='jp'
+      ? `${today.getFullYear()}.${String(today.getMonth()+1).padStart(2,'0')}.${String(today.getDate()).padStart(2,'0')} ${dow}`
+      : `${today.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}).toUpperCase()} ${dowEN}`;
+
+    // 背景グラデーション
+    const cx = W/2, cy = H/2;
+    const bg = ctx.createRadialGradient(cx, cy, 40, cx, cy, Math.max(W,H)*0.8);
+    bg.addColorStop(0,   member.color + '22');
+    bg.addColorStop(0.5, '#0a0c14');
+    bg.addColorStop(1,   '#050608');
+    ctx.fillStyle = bg; ctx.fillRect(0,0,W,H);
+
+    // 星屑
+    for (let i=0; i<120; i++) {
+      const alpha = 0.03 + Math.random()*0.12;
+      ctx.fillStyle = member.color + Math.floor(alpha*255).toString(16).padStart(2,'0');
+      ctx.beginPath(); ctx.arc(Math.random()*W, Math.random()*H, Math.random()*1.5, 0, Math.PI*2); ctx.fill();
+    }
+
+    // 円形グロー
+    ctx.shadowBlur=30; ctx.shadowColor=member.color+'66';
+    ctx.strokeStyle=member.color+'44'; ctx.lineWidth=1.5;
+    ctx.beginPath(); ctx.arc(cx,155,70,0,Math.PI*2); ctx.stroke(); ctx.shadowBlur=0;
+
+    // メンバーイニシャル
+    const initials = member.name.split(' ').map(s=>s[0]).join('');
+    ctx.font='bold 52px Chakra Petch, monospace';
+    ctx.fillStyle=member.color; ctx.textAlign='center';
+    ctx.shadowBlur=20; ctx.shadowColor=member.color;
+    ctx.fillText(initials, cx, 170); ctx.shadowBlur=0;
+
+    // 日付
+    ctx.font='11px Chakra Petch, monospace';
+    ctx.fillStyle='rgba(255,255,255,0.35)'; ctx.textAlign='left';
+    ctx.fillText(dateStr, 24, 34);
+
+    // ブランド
+    ctx.font='bold 13px Chakra Petch, monospace';
+    ctx.fillStyle='#D4AF37'; ctx.fillText('✦ FHTS  DAILY LIGHT', 24, 56);
+
+    // メンバー名
+    const nameLabel = lang==='jp' ? (member.jp||member.name) : member.name;
+    ctx.font='bold 24px Chakra Petch, monospace';
+    ctx.fillStyle='#ffffff'; ctx.textAlign='center';
+    ctx.fillText(`CHEERING FOR: ${nameLabel}`, cx, 255);
+
+    // 称号・POWER
+    ctx.font='13px Chakra Petch, monospace'; ctx.fillStyle=member.color;
+    ctx.fillText(`${lang==='jp'?tier.jp:tier.en}  ·  POWER ${pwr}`, cx, 280);
+
+    // 連続日数（streak≥2のみ）
+    let yNext = 302;
+    if (streak >= 2) {
+      ctx.font='11px Chakra Petch, monospace'; ctx.fillStyle='rgba(255,255,255,0.6)';
+      ctx.fillText(lang==='jp'?`🔥 ${streak}日連続チェックイン`:`🔥 ${streak}-day streak`, cx, yNext);
+      yNext = 322;
+    }
+
+    // Rainbow称号（該当時のみ）
+    if (rainbow) {
+      ctx.font='bold 11px Chakra Petch, monospace'; ctx.fillStyle='#FF69B4';
+      ctx.fillText(lang==='jp'?rainbow.jp:rainbow.en, cx, yNext);
+    }
+
+    // フッター（位置情報なし）
+    ctx.textAlign='right'; ctx.font='10px Chakra Petch, monospace';
+    ctx.fillStyle='rgba(255,255,255,0.25)';
+    ctx.fillText('#BTSDailyLight · @fhts_app', W-24, H-18);
+    ctx.textAlign='left';
+
+  } catch(e) { console.warn('[DailyShare] Build canvas failed:', e); }
 }
 
-function initShare(){
+// ── initShare（リスナー重複防止＋デイリー一本化）─────────────
+function initShare() {
   try {
-    const modal=getEl('shareModal'), shareBtn=getEl('shareBtn'), closeShare=getEl('closeShare');
-    if(shareBtn) shareBtn.addEventListener('click',()=>{buildShareCanvas();if(modal)modal.classList.add('on');});
-    if(closeShare) closeShare.addEventListener('click',()=>{if(modal)modal.classList.remove('on');});
-    if(modal) modal.addEventListener('click',e=>{if(e.target===modal)modal.classList.remove('on');});
-    document.querySelectorAll('.spbtn').forEach(btn=>{
-      if(!btn) return;
-      btn.addEventListener('click',async()=>{
-        try{
-          const sc=getEl('shareCanvas'); if(!sc) return;
-          const blob=await new Promise(r=>sc.toBlob(r,'image/png')),file=new File([blob],'bts-light-route.png',{type:'image/png'}),text=`✦ BTS LIGHT ROUTE · ${routeFrom.city.toUpperCase()} → ${routeTo.city.toUpperCase()} · #BTSLightRoute`;
-          if(navigator.share&&navigator.canShare({files:[file]})) await navigator.share({files:[file],text});
-          else{const a=document.createElement('a');a.href=sc.toDataURL('image/png');a.download='bts-light-route.png';a.click();}
-        }catch{
-          const sc=getEl('shareCanvas'); if(!sc) return;
-          const a=document.createElement('a');a.href=sc.toDataURL('image/png');a.download='bts-light-route.png';a.click();
-        }
+    const modal      = getEl('shareModal');
+    const closeShare = getEl('closeShare');
+
+    // 旧 shareBtn は非表示
+    const shareBtn = getEl('shareBtn'); if (shareBtn) shareBtn.style.display = 'none';
+
+    // .spbtn のリスナーをクローン置換でリセット（重複防止）
+    document.querySelectorAll('.spbtn').forEach(btn => {
+      const newBtn = btn.cloneNode(true);
+      btn.parentNode.replaceChild(newBtn, btn);
+    });
+
+    // デイリーシェアボタン → モーダル表示
+    const dailyShareBtn = getEl('dailyShareBtn');
+    if (dailyShareBtn) {
+      dailyShareBtn.addEventListener('click', () => {
+        buildDailyShareCanvas();
+        if (modal) modal.classList.add('on');
+      });
+    }
+
+    // .spbtn → DL / SNSシェア
+    document.querySelectorAll('.spbtn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        try {
+          const memberId = dailyData.members[0];
+          if (!memberId) { console.warn('[DailyShare] No member selected'); return; }
+          const member = MEMBERS.find(m => m.id === memberId); if (!member) return;
+
+          const sc = getEl('dailyShareCanvas'); if (!sc) return;
+          const blob = await new Promise(r => sc.toBlob(r, 'image/png'));
+          const file = new File([blob], 'bts-daily-oshi.png', { type:'image/png' });
+          const text = `✦ FHTS Daily Light · ${member.name} · POWER ${Math.round(getPower())} · #BTSDailyLight`;
+
+          if (navigator.share && navigator.canShare({ files:[file] })) {
+            await navigator.share({ files:[file], text });
+          } else {
+            const a = document.createElement('a'); a.href = sc.toDataURL('image/png'); a.download = 'bts-daily-oshi.png'; a.click();
+          }
+          GA.trackDailyShare('native_share_or_download');
+        } catch(e) { console.warn('[DailyShare] Share failed:', e); }
       });
     });
-  } catch (e) { console.error('[Share] Init failed:', e); }
+
+    if (closeShare) closeShare.addEventListener('click', () => { if(modal)modal.classList.remove('on'); });
+    if (modal)      modal.addEventListener('click', e => { if(e.target===modal)modal.classList.remove('on'); });
+
+  } catch(e) { console.error('[Share] Init failed:', e); }
 }
 
 // ════════════════════════════════════════════════
 // INIT
 // ════════════════════════════════════════════════
-async function init(){
+async function init() {
   try {
-    const langBtn=getEl('langBtn'); if(langBtn) langBtn.addEventListener('click',toggleLang);
+    const langBtn = getEl('langBtn'); if (langBtn) langBtn.addEventListener('click', toggleLang);
     await Sec.init();
-    powerData=await Sec.load(POWER_KEY,{lastDate:'',streak:0,total:0});
-    dailyData =await Sec.load(DAILY_KEY,{date:'',members:[],rainbowCount:0});
+    powerData = await Sec.load(POWER_KEY, {lastDate:'',streak:0,total:0});
+    dailyData  = await Sec.load(DAILY_KEY, {date:'',members:[],rainbowCount:0});
     recordDailyVisit(); resetDailyIfNeeded();
-    initMapCanvas(); initEnergyCanvas(); initCards();
-    if(typeof resizeMap==='function') resizeMap();
-    if(mc&&mc.width===0&&mc.parentElement){mc.width=mc.parentElement.offsetWidth||358;mc.height=200;}
-    window.addEventListener('resize',()=>{try{if(typeof resizeMap==='function')resizeMap();}catch(e){console.warn('[Resize] Handler error:',e);}});
+
+    // MapRenderer 初期化（非同期: JSON + 画像読込）
+    const mc = getEl('mapCanvas');
+    if (mc) {
+      mapRenderer = new MapRenderer(mc);
+      await mapRenderer.init();
+      mapRenderer.resize();
+      await mapRenderer.renderStaticLayer();
+    }
+
+    initEnergyCanvas(); initCards();
+
+    window.addEventListener('resize', async () => {
+      try { if (mapRenderer) { mapRenderer.resize(); await mapRenderer.renderStaticLayer(); } }
+      catch(e) { console.warn('[Resize] Handler error:', e); }
+    });
+
     initCompass(); initMemberSel(); initDailyGrid(); initSendBtn(); initShare();
+
     const _nt=findNextTarget(), _ni=TOUR.indexOf(_nt), _pi=Math.max(0,_ni-1);
-    setRoute(TOUR[_pi],_nt); applyTheme(activeMember); selectStop(_nt,_ni);
+    setRoute(TOUR[_pi], _nt); applyTheme(activeMember); selectStop(_nt, _ni);
     refreshStatusBar(); refreshDailyUI(); renderTitleZone();
-    requestAnimationFrame(loopMap); drawEnergy(); updateCountdown(); updateShowtime();
+
+    requestAnimationFrame(loopMap);
+    drawEnergy(); updateCountdown(); updateShowtime();
     setInterval(updateCountdown, 30000);
     setInterval(updateShowtime,  60000);
     setInterval(drawEnergy, 120);
-    setInterval(()=>{
-      try{energyCount+=Math.floor(Math.random()*4)+1;const el=getEl('eCount');if(el)el.textContent=energyCount.toLocaleString();}
-      catch(e){console.warn('[Energy] Interval error:',e);}
+    setInterval(() => {
+      try { energyCount += Math.floor(Math.random()*4)+1; const el=getEl('eCount'); if(el)el.textContent=energyCount.toLocaleString(); }
+      catch(e) {}
     }, 3200);
     checkShowtimeArrival();
-  } catch (e) { console.error('[Init] Fatal error:', e); }
+  } catch(e) { console.error('[Init] Fatal error:', e); }
 }
 
 // ════════════════════════════════════════════════
@@ -1769,44 +1386,51 @@ const GA = {
   CONSENT_KEY: 'bts_lr_consent_v1',
   init() {
     try {
-      if(typeof gtag==='undefined'){console.warn('[GA] gtag is not defined — GA4 script may be missing or blocked');return;}
+      if (typeof gtag === 'undefined') { console.warn('[GA] gtag not defined'); return; }
       const saved=localStorage.getItem(this.CONSENT_KEY), banner=getEl('consentBanner');
-      if(saved==='granted'){this.grant(false);}
-      else if(saved!=='denied'){if(banner)banner.classList.add('show');}
+      if (saved==='granted') { this.grant(false); }
+      else if (saved !== 'denied') { if (banner) banner.classList.add('show'); }
       const cbAccept=getEl('cbAccept'), cbDecline=getEl('cbDecline'), privacyLink=getEl('privacyLink');
-      if(cbAccept)    cbAccept.addEventListener('click',()=>this.grant(true));
-      if(cbDecline)   cbDecline.addEventListener('click',()=>this.deny());
-      if(privacyLink) privacyLink.addEventListener('click',()=>{if(banner)banner.classList.add('show');});
-    } catch (e) { console.warn('[GA] Init failed:', e); }
+      if (cbAccept)    cbAccept.addEventListener('click', ()=>this.grant(true));
+      if (cbDecline)   cbDecline.addEventListener('click', ()=>this.deny());
+      if (privacyLink) privacyLink.addEventListener('click', ()=>{ if(banner)banner.classList.add('show'); });
+    } catch(e) { console.warn('[GA] Init failed:', e); }
   },
-  grant(save=true){
+  grant(save=true) {
     try {
-      if(typeof gtag==='undefined') return;
-      if(save) localStorage.setItem(this.CONSENT_KEY,'granted');
+      if (typeof gtag==='undefined') return;
+      if (save) localStorage.setItem(this.CONSENT_KEY,'granted');
       gtag('consent','update',{analytics_storage:'granted'});
       const banner=getEl('consentBanner'); if(banner)banner.classList.remove('show');
       gtag('event','page_view',{page_title:'BTS Light Route',page_location:location.href});
-    } catch (e) { console.warn('[GA] Grant failed:', e); }
+    } catch(e) {}
   },
-  deny(){
+  deny() {
     try {
-      if(typeof gtag==='undefined') return;
+      if (typeof gtag==='undefined') return;
       localStorage.setItem(this.CONSENT_KEY,'denied');
       gtag('consent','update',{analytics_storage:'denied'});
       const banner=getEl('consentBanner'); if(banner)banner.classList.remove('show');
-    } catch (e) { console.warn('[GA] Deny failed:', e); }
+    } catch(e) {}
   },
-  track(eventName, params={}){ try{if(typeof gtag!=='undefined')gtag('event',eventName,params);}catch(e){} },
-  trackSendLight(venue,city,memberName,power,daysToShow){ this.track('send_light',{venue_city:city,member_name:memberName,power_level:Math.round(power),days_to_show:daysToShow}); },
-  trackDailyCheckin(memberId,checkinCount){ this.track('daily_checkin',{member_id:memberId,daily_count:checkinCount}); },
-  trackRainbow(totalRainbows,streakDays){ this.track('rainbow_achieved',{total_rainbows:totalRainbows,streak_days:streakDays}); },
-  trackTitleEarned(titleEn,totalStars){ this.track('title_earned',{title:titleEn,total_stars:totalStars}); },
-  trackGeoGranted(){ this.track('geo_permission_granted'); },
+  track(ev, params={}) { try { if(typeof gtag!=='undefined')gtag('event',ev,params); } catch(e) {} },
+  trackSendLight(venue,city,memberName,power,daysToShow) { this.track('send_light',{venue_city:city,member_name:memberName,power_level:Math.round(power),days_to_show:daysToShow}); },
+  trackDailyCheckin(memberId,checkinCount) { this.track('daily_checkin',{member_id:memberId,daily_count:checkinCount}); },
+  trackRainbow(totalRainbows,streakDays)   { this.track('rainbow_achieved',{total_rainbows:totalRainbows,streak_days:streakDays}); },
+  trackTitleEarned(titleEn,totalStars)     { this.track('title_earned',{title:titleEn,total_stars:totalStars}); },
+  trackGeoGranted()  { this.track('geo_permission_granted'); },
   trackLangSwitch(to){ this.track('language_switch',{to_lang:to}); },
-  trackShare(platform){ this.track('share_route_image',{platform}); },
+  // ── デイリーシェア専用（航路シェアから分離）──
+  trackDailyShare(platform) {
+    this.track('share_daily_oshi', {
+      platform,
+      member_id:   dailyData.members[0] || 'unknown',
+      power_level: Math.round(getPower()),
+    });
+  },
 };
 
-window.addEventListener('DOMContentLoaded', ()=>{
+window.addEventListener('DOMContentLoaded', () => {
   try { init(); GA.init(); }
-  catch (e) { console.error('[Bootstrap] Fatal error:', e); }
+  catch(e) { console.error('[Bootstrap] Fatal error:', e); }
 });
