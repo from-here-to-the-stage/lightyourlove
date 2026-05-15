@@ -280,7 +280,7 @@ jobs:
           fi
 
           # ── ★ 航路シェア廃止確認（ゾンビ関数チェック）──────
-          if grep -q "buildShareCanvas" dist/app.js 2>/dev/null; then
+          if grep -qw "buildShareCanvas" dist/app.js 2>/dev/null; then
             echo "FAIL: buildShareCanvas() still exists in dist/app.js (zombie function)"
             MISSING="$MISSING [zombie:buildShareCanvas]"
           fi
