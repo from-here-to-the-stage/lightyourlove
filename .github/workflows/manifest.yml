@@ -1,0 +1,201 @@
+name: Generate Daily Token & Manifest
+
+# ─────────────────────────────────────────────────────────────
+# 毎日 JST 0:05 に実行（デプロイとは独立）
+# 当日分の SDS-v2 salt と manifest.json を dist/ に追記し
+# GitHub Pages へ差分デプロイする
+#
+# 必要な Secrets:
+#   SIGN_KEY = openssl rand -hex 32  （deploy.yml と同じ値）
+# ─────────────────────────────────────────────────────────────
+
+on:
+  schedule:
+    - cron: '5 15 * * *'   # JST 0:05 = UTC 15:05
+  workflow_dispatch:         # 手動実行も可
+
+permissions:
+  contents: read
+  pages:    write
+  id-token: write
+
+concurrency:
+  group:              pages
+  cancel-in-progress: true
+
+jobs:
+  daily-token:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url:  ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # ── 前回ビルドの dist/ を復元（pages artifact から取得）──
+      - name: Restore previous dist
+        uses: actions/download-artifact@v4
+        with:
+          name: github-pages
+          path: dist-tar
+        continue-on-error: true   # 初回は存在しないためスキップ
+
+      - name: Extract dist
+        run: |
+          if [ -f "dist-tar/artifact.tar" ]; then
+            mkdir -p dist
+            tar -xf dist-tar/artifact.tar -C dist
+            echo "Previous dist restored"
+          else
+            echo "No previous dist — performing full build"
+            # フォールバック: deploy.yml と同等の最小ビルド
+            mkdir -p dist/tokens dist/js dist/assets/maps
+
+            if   [ -f "bts-light-route.html" ]; then cp bts-light-route.html dist/index.html
+            elif [ -f "index.html" ];            then cp index.html dist/index.html
+            fi
+
+            for f in robots.txt sitemap.xml app.webmanifest styles.css; do
+              [ -f "$f" ] && cp "$f" dist/
+            done
+
+            [ -f "tour-data.js" ] && cp tour-data.js dist/
+            [ -f "app.js" ]       && cp app.js dist/
+
+            # ★ js/ サブディレクトリ（新構成）
+            if [ -d "js" ]; then
+              cp -r js/. dist/js/
+            fi
+
+            # ★ assets/ サブディレクトリ
+            if [ -d "assets" ]; then
+              cp -r assets/. dist/assets/
+            fi
+
+            if [ -d "icons" ]; then
+              mkdir -p dist/icons
+              cp icons/*.png dist/icons/ 2>/dev/null || true
+              [ -f "icons/icon-192.png" ] && cp icons/icon-192.png dist/favicon.ico || true
+            fi
+          fi
+
+      - name: Generate SDS-v2 daily salt
+        env:
+          SIGN_KEY: ${{ secrets.SIGN_KEY }}
+        run: |
+          set -euo pipefail
+          DATE=$(TZ=Asia/Tokyo date +%Y-%m-%d)
+          TOMORROW=$(date -u -d '+1 day' +%Y-%m-%dT00:00:00Z 2>/dev/null \
+                  || date -u -v+1d +%Y-%m-%dT00:00:00Z)
+
+          if [ -n "${SIGN_KEY:-}" ]; then
+            SALT=$(printf '%s%s%s' "${SIGN_KEY}" "daily" "${DATE}" \
+                   | openssl dgst -sha256 -hex | awk '{print $2}')
+          else
+            SALT="0000000000000000000000000000000000000000000000000000000000000000"
+            echo "Warning: SIGN_KEY not set"
+          fi
+
+          mkdir -p dist/tokens
+          printf '{"date":"%s","salt":"%s","token":"%s","expires":"%s","v":2}\n' \
+            "${DATE}" "${SALT}" "${SALT}" "${TOMORROW}" \
+            > "dist/tokens/${DATE}.json"
+          echo "SDS-v2 salt generated for ${DATE}"
+
+      - name: Generate signed manifest
+        env:
+          SIGN_KEY: ${{ secrets.SIGN_KEY }}
+        run: |
+          DATE=$(date -u +%Y-%m-%d)
+          if [ -n "${SIGN_KEY:-}" ]; then
+            KEY=$(printf '%s%s' "${SIGN_KEY}" "${DATE}" \
+                  | openssl dgst -sha256 -hex | awk '{print $2}')
+          else
+            KEY="static-manifest-key"
+          fi
+          printf '{"date":"%s","k":"%s","v":1}\n' "${DATE}" "${KEY}" \
+            > dist/manifest.json
+          echo "manifest.json generated for ${DATE}"
+
+      # ── Validate required assets（新構成チェック）────────────
+      - name: Validate required assets
+        run: |
+          MISSING=""
+
+          # ルートファイル
+          [ ! -f "dist/index.html" ]     && MISSING="$MISSING dist/index.html"
+          [ ! -f "dist/app.js" ]         && MISSING="$MISSING dist/app.js"
+          [ ! -f "dist/tour-data.js" ]   && MISSING="$MISSING dist/tour-data.js"
+
+          # ★ js/ 新設ファイル（必須）
+          [ ! -f "dist/js/utils/geo.js" ]              && MISSING="$MISSING dist/js/utils/geo.js"
+          [ ! -f "dist/js/config/map-config.js" ]      && MISSING="$MISSING dist/js/config/map-config.js"
+          [ ! -f "dist/js/renderer/map-renderer.js" ]  && MISSING="$MISSING dist/js/renderer/map-renderer.js"
+          [ ! -f "dist/js/data/cities.json" ]          && MISSING="$MISSING dist/js/data/cities.json"
+          [ ! -f "dist/js/data/continents.json" ]      && MISSING="$MISSING dist/js/data/continents.json"
+
+          # ★ assets/（任意 — 未配置時は Canvas フォールバック）
+          if [ ! -f "dist/assets/maps/world-base.png" ]; then
+            echo "⚠ Warning: dist/assets/maps/world-base.png not found"
+            echo "  → Canvas fallback (continents.json) will be used"
+          else
+            SIZE=$(stat -c%s "dist/assets/maps/world-base.png" 2>/dev/null \
+                || stat -f%z "dist/assets/maps/world-base.png")
+            echo "✓ world-base.png found (${SIZE} bytes)"
+          fi
+
+          # ★ 旧ファイル残存チェック（航路シェア廃止確認）
+          if grep -q "buildShareCanvas" dist/app.js 2>/dev/null; then
+            echo "FAIL: buildShareCanvas() still exists in dist/app.js"
+            MISSING="$MISSING [zombie: buildShareCanvas]"
+          fi
+
+          if [ -n "$MISSING" ]; then
+            echo "Missing required files:$MISSING"
+            exit 1
+          fi
+          echo "✓ Required assets validation passed"
+
+      - name: Validate placeholders replaced
+        run: |
+          REMAINING=$(grep -ro '%%[A-Z_]*%%' dist/ || true)
+          if [ -n "$REMAINING" ]; then
+            echo "Unreplaced placeholders found:"
+            echo "$REMAINING"
+            exit 1
+          fi
+          echo "✓ All placeholders replaced"
+
+      - name: Validate no HTML in JS
+        run: |
+          HTML_IN_JS=$(grep -rE '<script|</script>' dist/ --include='*.js' 2>/dev/null || true)
+          if [ -n "$HTML_IN_JS" ]; then
+            echo "SECURITY FAIL: HTML tags found in JS files:"
+            echo "$HTML_IN_JS"
+            exit 1
+          fi
+          echo "✓ JS files are HTML-tag free"
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+      - name: Summary
+        run: |
+          DATE=$(TZ=Asia/Tokyo date +%Y-%m-%d)
+          echo "## Daily Token Deploy" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Date (JST): ${DATE}"                              >> "$GITHUB_STEP_SUMMARY"
+          echo "- Token: dist/tokens/${DATE}.json"                  >> "$GITHUB_STEP_SUMMARY"
+          echo "- Manifest: dist/manifest.json"                     >> "$GITHUB_STEP_SUMMARY"
+          echo "- URL: ${{ steps.deployment.outputs.page_url }}"   >> "$GITHUB_STEP_SUMMARY"
+          echo "- js/ files: $(find dist/js -name '*.js' -o -name '*.json' 2>/dev/null | wc -l)" >> "$GITHUB_STEP_SUMMARY"

@@ -1,0 +1,29 @@
+{
+  "name": "From Here. To the Stage.",
+  "short_name": "FHTS",
+  "description": "BTS ARIRANG World Tour 2026 fan light experience.",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#F4F2FF",
+  "theme_color": "#5B3FD9",
+  "orientation": "portrait-primary",
+  "lang": "ja",
+  "icons": [
+    {
+      "src": "./icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "./icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": [
+    "entertainment",
+    "music"
+  ]
+}

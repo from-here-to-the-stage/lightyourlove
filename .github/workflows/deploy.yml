@@ -57,23 +57,46 @@ jobs:
       - name: Prepare dist
         run: |
           mkdir -p dist/tokens
-          # index.html
+
+          # ── index.html ──────────────────────────────────────
           if   [ -f "bts-light-route.html" ]; then cp bts-light-route.html dist/index.html
           elif [ -f "index.html" ];           then cp index.html dist/index.html
           fi
-          # 静的ファイル
+
+          # ── 静的ファイル ─────────────────────────────────────
           for f in robots.txt sitemap.xml app.webmanifest styles.css; do
             [ -f "$f" ] && cp "$f" dist/
           done
-          # JavaScript（分割ファイル構成に対応）
+
+          # ── ルート JavaScript ────────────────────────────────
           [ -f "tour-data.js" ] && cp tour-data.js dist/
           [ -f "app.js" ]       && cp app.js dist/
-          # PWA アイコン
+
+          # ── ★ js/ サブディレクトリ（新設）─────────────────────
+          # utils/geo.js, config/map-config.js,
+          # renderer/map-renderer.js, data/cities.json,
+          # data/continents.json
+          if [ -d "js" ]; then
+            mkdir -p dist/js
+            cp -r js/. dist/js/
+            echo "Copied js/ → dist/js/"
+          fi
+
+          # ── ★ assets/ サブディレクトリ（新設）──────────────────
+          # assets/maps/world-base.png
+          if [ -d "assets" ]; then
+            mkdir -p dist/assets
+            cp -r assets/. dist/assets/
+            echo "Copied assets/ → dist/assets/"
+          fi
+
+          # ── PWA アイコン ─────────────────────────────────────
           if [ -d "icons" ]; then
             mkdir -p dist/icons
             cp icons/*.png dist/icons/ 2>/dev/null || true
             [ -f "icons/icon-192.png" ] && cp icons/icon-192.png dist/favicon.ico || true
           fi
+
           rm -rf dist/.github dist/.git
 
       - name: Inject variables
@@ -94,11 +117,6 @@ jobs:
           site_url   = os.environ.get('SITE_URL',  '').strip()
 
           # ── GA4 スクリプトブロック生成（HTML専用）─────────────
-          # GDPR / EU 規制対応:
-          # gtag('consent','default',{analytics_storage:'denied'}) を config 前に設定し、
-          # ユーザーが同意するまで GA4 へのデータ送信をブロック（Cookie 書き込みも抑止）。
-          # 同意後は app.js の GA.grant() 内で gtag('consent','update',...) により
-          # granted に変更され、以降は自動ページビュー送信を含む全計測が有効化される。
           if ga4_id and not ga4_id.startswith('G-XXXXXXXXXX'):
               ga4_script = (
                   '<script async src="https://www.googletagmanager.com/gtag/js?id=' + ga4_id + '"></script>\n'
@@ -113,9 +131,8 @@ jobs:
               ga4_script = '<!-- GA4 not configured -->'
               print('GA4: not configured')
 
-          # ── HTML ファイル（GA4スクリプト注入可）──────────────
-          html_targets = ['dist/index.html']
-          for path in html_targets:
+          # ── HTML ファイル ─────────────────────────────────────
+          for path in ['dist/index.html']:
               try:
                   with open(path, 'r', encoding='utf-8') as f:
                       content = f.read()
@@ -131,10 +148,13 @@ jobs:
               except FileNotFoundError:
                   print('Skipped (not found): ' + path)
 
-          # ── JS ファイル（GA4スクリプト注入禁止）──────────────
-          # JS 内に HTML タグを注入すると SyntaxError でアプリ全体が停止するため、
-          # %%GA4_SCRIPT%% は無害なコメントに置換。他のプレースホルダーのみ通常置換。
+          # ── JS ファイル（ルート + js/ 配下を再帰探索）──────────
           js_targets = ['dist/app.js', 'dist/tour-data.js']
+          for root, dirs, files in os.walk('dist/js'):
+              for fname in files:
+                  if fname.endswith('.js'):
+                      js_targets.append(os.path.join(root, fname))
+
           for path in js_targets:
               try:
                   with open(path, 'r', encoding='utf-8') as f:
@@ -150,9 +170,8 @@ jobs:
               except FileNotFoundError:
                   print('Skipped (not found): ' + path)
 
-          # ── その他のテキストファイル（GA4_SCRIPT はコメント化）────────
-          text_targets = ['dist/robots.txt', 'dist/sitemap.xml', 'dist/app.webmanifest']
-          for path in text_targets:
+          # ── その他テキストファイル ────────────────────────────
+          for path in ['dist/robots.txt', 'dist/sitemap.xml', 'dist/app.webmanifest']:
               try:
                   with open(path, 'r', encoding='utf-8') as f:
                       content = f.read()
@@ -168,7 +187,7 @@ jobs:
                   print('Skipped (not found): ' + path)
 
           print('SITE_URL: ' + site_url)
-          print('GAS_URL: ' + ('set' if gas_url else 'not set'))
+          print('GAS_URL: '  + ('set' if gas_url else 'not set'))
           print('WORKER_URL: ' + ('set' if worker_url else 'not set'))
           PYEOF
 
@@ -209,15 +228,13 @@ jobs:
         run: |
           FAIL=0
           if [ -n "${SIGN_KEY:-}" ] && grep -rq "${SIGN_KEY}" dist/ 2>/dev/null; then
-            echo "SECURITY FAIL: SIGN_KEY leaked"
-            FAIL=1
+            echo "SECURITY FAIL: SIGN_KEY leaked"; FAIL=1
           fi
           [ "$FAIL" -eq 0 ] && echo "Security audit passed"
           exit $FAIL
 
       - name: Validate placeholders replaced
         run: |
-          # dist/ 全体を再帰的に検索し、%%PLACEHOLDER%% の残存を検出
           REMAINING=$(grep -ro '%%[A-Z_]*%%' dist/ || true)
           if [ -n "$REMAINING" ]; then
             echo "Unreplaced placeholders found:"
@@ -228,8 +245,6 @@ jobs:
 
       - name: Validate no HTML in JS
         run: |
-          # JS ファイルに <script> 等の HTML タグが混入していないか検証。
-          # 混入すると SyntaxError でアプリ全体が停止するため、CI で確実に検出する。
           HTML_IN_JS=$(grep -rE '<script|</script>' dist/ --include='*.js' 2>/dev/null || true)
           if [ -n "$HTML_IN_JS" ]; then
             echo "SECURITY FAIL: HTML tags found in JS files:"
@@ -237,6 +252,44 @@ jobs:
             exit 1
           fi
           echo "JS files are HTML-tag free"
+
+      - name: Validate required assets
+        run: |
+          MISSING=""
+
+          # ── ルートファイル ───────────────────────────────────
+          [ ! -f "dist/index.html" ]   && MISSING="$MISSING dist/index.html"
+          [ ! -f "dist/app.js" ]       && MISSING="$MISSING dist/app.js"
+          [ ! -f "dist/tour-data.js" ] && MISSING="$MISSING dist/tour-data.js"
+
+          # ── ★ js/ 新設ファイル（必須）───────────────────────
+          [ ! -f "dist/js/utils/geo.js" ]             && MISSING="$MISSING dist/js/utils/geo.js"
+          [ ! -f "dist/js/config/map-config.js" ]     && MISSING="$MISSING dist/js/config/map-config.js"
+          [ ! -f "dist/js/renderer/map-renderer.js" ] && MISSING="$MISSING dist/js/renderer/map-renderer.js"
+          [ ! -f "dist/js/data/cities.json" ]         && MISSING="$MISSING dist/js/data/cities.json"
+          [ ! -f "dist/js/data/continents.json" ]     && MISSING="$MISSING dist/js/data/continents.json"
+
+          # ── ★ assets/（任意 — 未配置時は Canvas フォールバック）
+          if [ ! -f "dist/assets/maps/world-base.png" ]; then
+            echo "Warning: dist/assets/maps/world-base.png not found"
+            echo "  → Canvas fallback (continents.json) will be used"
+          else
+            SIZE=$(stat -c%s "dist/assets/maps/world-base.png" 2>/dev/null \
+                || stat -f%z "dist/assets/maps/world-base.png")
+            echo "world-base.png: found (${SIZE} bytes)"
+          fi
+
+          # ── ★ 航路シェア廃止確認（ゾンビ関数チェック）──────
+          if grep -q "buildShareCanvas" dist/app.js 2>/dev/null; then
+            echo "FAIL: buildShareCanvas() still exists in dist/app.js (zombie function)"
+            MISSING="$MISSING [zombie:buildShareCanvas]"
+          fi
+
+          if [ -n "$MISSING" ]; then
+            echo "Missing required files:$MISSING"
+            exit 1
+          fi
+          echo "Required assets validation passed"
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
@@ -253,6 +306,9 @@ jobs:
       - name: Summary
         run: |
           echo "## Deploy Complete" >> "$GITHUB_STEP_SUMMARY"
-          echo "- URL: ${{ steps.deployment.outputs.page_url }}" >> "$GITHUB_STEP_SUMMARY"
-          echo "- SDS-v2: generated" >> "$GITHUB_STEP_SUMMARY"
-          echo "- manifest.json: generated" >> "$GITHUB_STEP_SUMMARY"
+          echo "- URL: ${{ steps.deployment.outputs.page_url }}"                                  >> "$GITHUB_STEP_SUMMARY"
+          echo "- SDS-v2: generated"                                                              >> "$GITHUB_STEP_SUMMARY"
+          echo "- manifest.json: generated"                                                       >> "$GITHUB_STEP_SUMMARY"
+          echo "- js/ modules: $(find dist/js -type f 2>/dev/null | wc -l) files"                >> "$GITHUB_STEP_SUMMARY"
+          echo "- assets/: $(find dist/assets -type f 2>/dev/null | wc -l) files"                >> "$GITHUB_STEP_SUMMARY"
+          echo "- world-base.png: $([ -f dist/assets/maps/world-base.png ] && echo 'YES' || echo 'NO — Canvas fallback')" >> "$GITHUB_STEP_SUMMARY"
