@@ -276,6 +276,10 @@ function checkInMember(memberId) {
   powerData.total = (powerData.total||0) + 1;
   savePower(); Sec.save(DAILY_KEY, dailyData);
   setTimeout(() => showChargeEffect(MEMBERS.find(m => m.id === memberId) || activeMember), 100);
+
+  // GA4: デイリーチェックイン
+  GA.trackDailyCheckin(memberId, powerData.total);
+
   return { action: 'added', memberId };
 }
 
@@ -933,6 +937,16 @@ function closeArrival() { try { const ov=getEl('showtimeOverlay'); if(ov) ov.cla
 function renderTitleZone() {
   try {
     const {tier, stars, oshi, rainbow} = computeTitles();
+    const _pm = parseInt(localStorage.getItem('fhts_tier_min')||'0', 10);
+    if (tier.min > _pm) {
+      GA.trackTitleEarned(tier.en, stars);
+      localStorage.setItem('fhts_tier_min', String(tier.min));
+    }
+    const _rc2 = dailyData.rainbowCount || 0, _pr = parseInt(localStorage.getItem('fhts_prev_rc')||'0', 10);
+    if (_rc2 > _pr && [1,3,7].includes(_rc2)) {
+      GA.trackRainbow(_rc2, powerData.streak);
+      localStorage.setItem('fhts_prev_rc', String(_rc2));
+    }
     const iconEl=getEl('titleIcon'), nameEl=getEl('titleName'), progEl=getEl('titleProgress'), fillEl=getEl('titleProgFill');
     const oshiEl=getEl('subTitleOshi'), rbEl=getEl('subTitleRainbow'), mbox=getEl('milestoneBox'), mtxt=getEl('milestoneTxt');
     if (iconEl) iconEl.textContent = tier.icon;
@@ -1068,6 +1082,19 @@ async function doSend() {
       return;
     }
     const pwr = getPower(); markSent(targetStop, activeMember, pwr); energyCount++;
+
+    // GA4: 光を送る
+    const _daysToShow = targetStop.st
+      ? Math.round((new Date(targetStop.st) - new Date()) / 86400000)
+      : 0;
+    GA.trackSendLight(
+      targetStop.venue,
+      targetStop.city,
+      activeMember.name,
+      getPower(),
+      _daysToShow
+    );
+
     const fLa = geoGranted&&userLat ? userLat : routeFrom.lat, fLo = geoGranted&&userLng ? userLng : routeFrom.lng;
     const dist = Math.round(hav(fLa, fLo, targetStop.lat, targetStop.lng));
     const ocean = oceanName(fLa, fLo, targetStop.lat, targetStop.lng);
